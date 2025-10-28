@@ -1,10 +1,10 @@
-package br.com.prospectaai.ms_useraccount.entity;
+package br.com.prospectaai.ms_useraccount.domain.entity;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import br.com.prospectaai.ms_useraccount.enums.Role;
+import br.com.prospectaai.ms_useraccount.domain.enums.Role;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +29,9 @@ public class UserAccountEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false)
     private UUID accountId;
+
+    @Column(nullable = false, unique = true)
+    private String email;
 
     @Column(nullable = false, length = 50)
     private String displayName;

@@ -1,5 +1,5 @@
 
-package br.com.prospectaai.ms_useraccount.entity;
+package br.com.prospectaai.ms_useraccount.domain.entity;
 
 import java.util.UUID;
 

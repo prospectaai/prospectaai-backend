@@ -1,4 +1,4 @@
-package br.com.prospectaai.ms_useraccount.enums;
+package br.com.prospectaai.ms_useraccount.domain.enums;
 
 public enum Role {
     SimpleUser("simple_user");
@@ -8,5 +8,5 @@ public enum Role {
     Role(String tag) { this.tag = tag; }
 
     public String getTag() { return this.tag; }
-    
+
 }

@@ -1,0 +1,25 @@
+services:
+  ms-useraccount:
+    build:
+      context: ./ms-useraccount
+      dockerfile: Dockerfile
+    container_name: ms-useraccount
+    # depends_on:
+    #   ms-auto-kafka-topic:
+    #     condition: service_completed_successfully
+    environment:
+      #SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GOOGLE_CLIENT_ID:
+      GOOGLE_CLIENT_SECRET: 
+      GITHUB_CLIENT_ID: 
+      GITHUB_CLIENT_SECRET: 
+      JWT_SECRET: 
+      JWT_EXPIRATION-MS: 
+    ports:
+      - "8080:8080"
+    networks:
+      - prospectaai-network
+
+networks:
+  prospectaai-network:
+    driver: bridge

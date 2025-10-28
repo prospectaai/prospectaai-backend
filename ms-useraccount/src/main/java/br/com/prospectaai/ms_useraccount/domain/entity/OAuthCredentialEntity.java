@@ -1,8 +1,8 @@
-package br.com.prospectaai.ms_useraccount.entity;
+package br.com.prospectaai.ms_useraccount.domain.entity;
 
 import java.util.UUID;
 
-import br.com.prospectaai.ms_useraccount.enums.OAuthProvider;
+import br.com.prospectaai.ms_useraccount.domain.enums.OAuthProvider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,11 +11,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "oauth_credential")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

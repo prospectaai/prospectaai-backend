@@ -2,9 +2,20 @@ current:
   year: 2025
 ms:
   version: 1.0.0
+
+server:
+  port: 8081  
+
 spring:
   application:
     name: ms-useraccount
+
+  kafka: 
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer:  org.springframework.kafka.support.serializer.JsonSerializer
+  
   security:
     oauth2:
       client:
@@ -17,7 +28,10 @@ spring:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
             scope: read:user, user:email
+
+            
 security:
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION-MS}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION}

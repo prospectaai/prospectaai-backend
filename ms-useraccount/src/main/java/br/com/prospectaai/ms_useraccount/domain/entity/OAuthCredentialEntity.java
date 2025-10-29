@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -28,6 +29,7 @@ public class OAuthCredentialEntity {
     private UUID oauthCredentialId;
     
     @ManyToOne
+    @JoinColumn(name = "user_account_id", nullable = false)
     private UserAccountEntity userAccount;
 
     @Enumerated(EnumType.STRING)

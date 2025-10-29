@@ -13,6 +13,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -49,5 +50,6 @@ public class UserAccountEntity {
     @OneToOne(mappedBy = "userAccount", cascade = CascadeType.ALL)
     private LocalCredentialEntity LocalCredential;
     
+    @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL)
     private List<OAuthCredentialEntity> oatuhCredentials = new ArrayList<>();
 }

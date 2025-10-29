@@ -2,22 +2,24 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+
 	<parent>
 		<groupId>br.com.prospectaai</groupId>
 		<artifactId>prospectaai-backend</artifactId>
 		<version>1.0.0</version>
 		<relativePath>../pom.xml</relativePath> 
 	</parent>
+
 	<groupId>br.com.prospectaai</groupId>
-	<artifactId>ms-useraccount</artifactId>
+	<artifactId>ms-billing-sbs</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ms-useraccount</name>
-	<description>Microserviço para contas de usuário</description>
+	<name>ms-billing-sbs</name>
+	<description>Microserviço para Billing &amp; Subscription Management</description>
 	<url/>
 	<licenses>
 		<license/>
 	</licenses>
-	<developers> 
+	<developers>
 		<developer/>
 	</developers>
 	<scm>
@@ -66,40 +68,6 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-      		<groupId>org.springframework.security</groupId>
-      		<artifactId>spring-security-test</artifactId>
-      		<scope>test</scope>
-    	</dependency>
-		<dependency>
-      		<groupId>org.springframework.boot</groupId>
-      		<artifactId>spring-boot-starter-security</artifactId>
-    	</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>0.11.5</version>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>0.11.5</version>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>0.11.5</version>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-oauth2-client</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-		</dependency>
 
 		<!-- Shared Module -->
 		<dependency>
@@ -127,8 +95,15 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
 				<configuration>
-					<mainClass>br.com.prospectaai.ms_useraccount.MsUseraccountApplication</mainClass>
+					<mainClass>br.com.prospectaai.ms_billing_sbs.MsBillingSbsApplication</mainClass>
 					<layout>JAR</layout>
 					<excludes>
 						<exclude>
@@ -137,13 +112,6 @@
 						</exclude>
 					</excludes>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

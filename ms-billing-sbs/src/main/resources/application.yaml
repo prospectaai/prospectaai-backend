@@ -1,0 +1,19 @@
+current:
+  year: 2025
+ms:
+  version: 1.0.0
+
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ms-billing-sbs
+
+  kafka: 
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ms-billing-sbs-group
+      key-serializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest

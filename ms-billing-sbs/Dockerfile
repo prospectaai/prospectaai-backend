@@ -11,9 +11,9 @@ COPY ./ms-auto-kafka-topic ./ms-auto-kafka-topic
 # Build de todos os módulos via POM pai
 RUN mvn clean install -DskipTests -f ./pom.xml
 
-# Copia apenas o jar final do ms-useraccount
+# Copia apenas o jar final do ms-billing-sbs
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=build /app/ms-useraccount/target/*.jar app.jar
-EXPOSE 8081
+COPY --from=build /app/ms-billing-sbs/target/*.jar app.jar
+EXPOSE 8082
 CMD ["java", "-jar", "app.jar"]

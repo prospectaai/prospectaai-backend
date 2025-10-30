@@ -1,0 +1,53 @@
+current:
+  year: 2025
+
+ms:
+  version: 1.0.0
+
+server:
+  port: 0
+
+spring:
+  application:
+    name: ms-useraccount
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+    initialization-mode: always
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            scope: email, profile
+          github:
+            client-id: test-github-client-id
+            client-secret: test-github-client-secret
+            scope: read:user, user:email
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+
+security:
+  jwt:
+    secret: test-jwt-secret
+    expiration-ms: 3600000
+    refresh-expiration-ms: 86400000

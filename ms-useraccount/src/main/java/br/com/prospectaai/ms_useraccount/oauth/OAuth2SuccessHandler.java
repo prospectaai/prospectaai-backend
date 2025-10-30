@@ -35,6 +35,21 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final JwtTokenProvider jwtTokenProvider;
     private final PreRegisterAccountService preRegisterAccountService;
 
+    /**
+     * Trata o sucesso da autenticação OAuth2.
+     * Se o usuário não estiver registrado, faz o pré-registro.
+     * Gera um token JWT e redireciona para a página de checkout com o token.
+     * Se o usuário já estiver registrado, gera um token JWT e redireciona para a página de sucesso com o token.
+     * 
+     * @param request a requisição HTTP
+     * @param response a resposta HTTP
+     * @param authentication a autenticação OAuth2
+     * @throws IOException se ocorrer um erro de I/O
+     * 
+     * @author Victor Barberino
+     * @since 2025-10-30
+     * @see AuthenticationSuccessHandler#onAuthenticationSuccess(HttpServletRequest, HttpServletResponse, Authentication)
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
@@ -42,7 +57,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
 
-        // procura user por e-mail ou cria
+        // procura user por e-mail ou faz o pre registro
         UserAccountEntity user = userRepository.findByEmail(email).orElseGet(() -> null );
         boolean isNeedPreRegister = user == null;
         RegisterResponse res = isNeedPreRegister ? preRegisterAccountService.doPreRegister(
@@ -54,8 +69,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                     .build()
             ) : null;
 
-        // Gera JWT e redireciona com token
-        String jwt = isNeedPreRegister ?  jwtTokenProvider.generateToken(res) : jwtTokenProvider.generateToken(user);
-        response.sendRedirect("/oauth2/success?token=" + jwt);
+        // Gera JWT
+        String jwt = isNeedPreRegister ? jwtTokenProvider.generateToken(res) : jwtTokenProvider.generateToken(user);
+        
+        // Redireciona para checkout se for pré-cadastro ou para página de sucesso se já tiver conta
+        if (isNeedPreRegister) {
+            // Redireciona para checkout com o token JWT
+            response.sendRedirect("/checkout?token=" + jwt);
+        } else {
+            // Usuário já tem conta, redireciona para página de sucesso
+            response.sendRedirect("/oauth2/success?token=" + jwt);
+        }
     }
 }

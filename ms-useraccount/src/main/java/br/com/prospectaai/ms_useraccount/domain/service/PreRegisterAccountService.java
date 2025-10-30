@@ -36,7 +36,28 @@ public class PreRegisterAccountService {
      */
     public RegisterResponse doPreRegister(@Validated RegisterRequest registerRequest) {
         PreRegisterAccountValidation.validatePreRegister(registerRequest, preRegisterAccountRepository);
-        PreRegisterAccountEntity persisted = preRegisterAccountRepository.save(preRegisterAccountMapper.toEntity(registerRequest));
-        return preRegisterAccountMapper.toResponseWithMessage(persisted);
+        
+        // Verificar se já existe um pré-cadastro com este email
+        PreRegisterAccountEntity entity;
+        if (preRegisterAccountRepository.existsByEmail(registerRequest.getEmail())) {
+            // Buscar o pré-cadastro existente
+            entity = preRegisterAccountRepository.findByEmail(registerRequest.getEmail());
+            
+            // Atualizar os dados do pré-cadastro
+            entity.setDisplayName(registerRequest.getDisplayName());
+            entity.setScope(registerRequest.getScope());
+
+            // Validar e atualizar a senha se fornecida
+            PreRegisterAccountValidation.validatePreRegisterData(registerRequest);
+            entity.setPasswordHash(registerRequest.getPasswordHash());
+            
+            // Salvar as alterações
+            entity = preRegisterAccountRepository.save(entity);
+        } else {
+            // Criar um novo pré-cadastro
+            entity = preRegisterAccountRepository.save(preRegisterAccountMapper.toEntity(registerRequest));
+        }
+        
+        return preRegisterAccountMapper.toResponseWithMessage(entity);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * @(#)OAuthCredentialRepository.java
+ * @(#)PreRegisterAccountRepository.java
  *
  * Copyright 2025, Prospecta AI
  * https://www.prospectaai.com.br
@@ -13,8 +13,8 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import br.com.prospectaai.ms_useraccount.domain.entity.OAuthCredentialEntity;
+import br.com.prospectaai.ms_useraccount.domain.entity.PreRegisterAccountEntity;
 
-public interface OAuthCredentialRepository extends JpaRepository<OAuthCredentialEntity, UUID> {
-
+public interface PreRegisterAccountRepository extends JpaRepository<PreRegisterAccountEntity, UUID> {
+    boolean existsByEmail(String email);
 }

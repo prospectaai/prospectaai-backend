@@ -1,5 +1,5 @@
 /*
- * @(#)LocalCredentialEntity.java
+ * @(#)PreRegisterAccountEntity.java
  *
  * Copyright 2025, Prospecta AI
  * https://www.prospectaai.com.br
@@ -11,42 +11,38 @@ package br.com.prospectaai.ms_useraccount.domain.entity;
 
 import java.util.UUID;
 
+import br.com.prospectaai.ms_useraccount.domain.enums.PreRegisterScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "local_credential")
+@Table(name = "pre_register_account")
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class LocalCredentialEntity {
+@AllArgsConstructor
+public class PreRegisterAccountEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false)
-    private UUID localCredentialId;
+    private UUID preRegisterId;
 
-    @OneToOne
-    @JoinColumn(name = "user_account_id", nullable = false)
-    private UserAccountEntity userAccount;
+    @Column(nullable = false, length = 50)
+    private String displayName;
+
+    @Column(nullable = false, unique = true)
+    private String email;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PreRegisterScope scope;
+    
     private String passwordHash;
-
-    @Column(nullable = false)
-    private Boolean verified = false;
-
-    @Column
-    private String verificationToken;
-
-    @Column
-    private String resetPasswordToken;
 }

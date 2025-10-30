@@ -1,3 +1,12 @@
+/*
+ * @(#)JwtTokenProvider.java
+ *
+ * Copyright 2025, Prospecta AI
+ * https://www.prospectaai.com.br
+ *
+ * Todos os direitos reservados.
+ */
+
 package br.com.prospectaai.ms_useraccount.jwt;
 
 import java.util.Date;
@@ -5,6 +14,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import br.com.prospectaai.ms_useraccount.domain.dto.RegisterResponse;
 import br.com.prospectaai.ms_useraccount.domain.entity.UserAccountEntity;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -21,6 +31,16 @@ public class JwtTokenProvider {
 
     @Value("${security.jwt.expiration-ms}")
     private long expirationMs;
+
+    public String generateToken(RegisterResponse res) {
+        return Jwts.builder()
+                .setSubject(res.getEmail())
+                .claim("preRegisterScope", res.getScope().name())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
+                .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)
+                .compact();
+    }
 
     public String generateToken(UserAccountEntity user) {
         return Jwts.builder()

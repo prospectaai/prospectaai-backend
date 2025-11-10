@@ -10,6 +10,7 @@
 package br.com.prospectaai.ms_useraccount.config;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,10 +25,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import br.com.prospectaai.ms_useraccount.domain.service.CustomUserDetailsService;
-import br.com.prospectaai.ms_useraccount.jwt.JwtAuthenticationFilter;
 import br.com.prospectaai.ms_useraccount.oauth.CustomOAuth2UserService;
 import br.com.prospectaai.ms_useraccount.oauth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +37,6 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
 
@@ -50,9 +48,10 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Endpoints públicos
-                .requestMatchers("/auth/**", "/oauth2/**", "/public/**").permitAll()
-                // Endpoints protegidos
-                .anyRequest().authenticated()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/v1/auth/**", "/auth/**", "/oauth2/**", "/public/**").permitAll()
+                // Removendo proteção no serviço — o Gateway fará a autenticação
+                .anyRequest().permitAll()
             )
             // Autenticação local
             .authenticationProvider(authenticationProvider())
@@ -61,9 +60,7 @@ public class SecurityConfig {
             .oauth2Login(oauth -> oauth
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                 .successHandler(oAuth2SuccessHandler)
-            )
-            // JWT Filter antes da autenticação padrão
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            );
 
         return http.build();
     }

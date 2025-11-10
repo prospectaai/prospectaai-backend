@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterResponse;
+import br.com.prospectaai.ms_useraccount.domain.enums.PreRegisterScope;
 import br.com.prospectaai.ms_useraccount.domain.entity.UserAccountEntity;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -46,6 +47,18 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("role", user.getRole().name())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
+                .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generatePreRegisterValidatedToken(java.util.UUID preRegisterId, String email, PreRegisterScope scope) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("preRegisterScope", scope.name())
+                .claim("preRegisterValidated", true)
+                .claim("preRegisterId", preRegisterId.toString())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)

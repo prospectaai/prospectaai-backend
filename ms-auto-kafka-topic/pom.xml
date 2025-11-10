@@ -52,6 +52,14 @@
 			<artifactId>spring-kafka-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		
+		<!-- Shared Module -->
+		<dependency>
+			<groupId>br.com.prospectaai</groupId>
+			<artifactId>shared</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

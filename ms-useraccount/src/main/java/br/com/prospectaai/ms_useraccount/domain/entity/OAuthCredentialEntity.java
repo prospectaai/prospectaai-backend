@@ -11,11 +11,8 @@ package br.com.prospectaai.ms_useraccount.domain.entity;
 
 import java.util.UUID;
 
-import br.com.prospectaai.ms_useraccount.domain.enums.OAuthProvider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -41,15 +38,11 @@ public class OAuthCredentialEntity {
     @JoinColumn(name = "user_account_id", nullable = false)
     private UserAccountEntity userAccount;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OAuthProvider provider;
+    private String provider;
 
     @Column(nullable = false)
     private String providerUserId; // ID retornado pela plataforma de terceiro.
-
-    @Column(nullable = true)
-    private String acceessToken;
 
     @Column(nullable = true)
     private String refreshToken;

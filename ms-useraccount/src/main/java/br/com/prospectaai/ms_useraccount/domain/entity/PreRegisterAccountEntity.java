@@ -9,6 +9,7 @@
 
 package br.com.prospectaai.ms_useraccount.domain.entity;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import br.com.prospectaai.ms_useraccount.domain.enums.PreRegisterScope;
@@ -45,4 +46,18 @@ public class PreRegisterAccountEntity {
     private PreRegisterScope scope;
     
     private String passwordHash;
+
+    private String provider;
+    private String avatarUrl;
+    private String providerUserId;
+
+    @Column(length = 6)
+    private String confirmationCode;
+
+    private LocalDateTime confirmationCodeExpiresAt;
+
+    private Boolean preRegisterValidated;
+
+    private LocalDateTime preRegisterValidatedAt;
+
 }

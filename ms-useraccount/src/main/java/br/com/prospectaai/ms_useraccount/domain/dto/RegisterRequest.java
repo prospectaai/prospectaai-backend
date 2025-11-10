@@ -35,7 +35,11 @@ public class RegisterRequest {
 
     // OAuth2 scope is used to identify if the user is registering through OAuth2
     @JsonIgnore
+    private String provider;
+    @JsonIgnore
     private PreRegisterScope scope;
     @JsonIgnore
     private String avatarUrl;
+    @JsonIgnore
+    private String providerUserId;
 }

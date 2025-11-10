@@ -41,12 +41,6 @@ public class LocalCredentialEntity {
     @Column(nullable = false)
     private String passwordHash;
 
-    @Column(nullable = false)
-    private Boolean verified = false;
-
-    @Column
-    private String verificationToken;
-
     @Column
     private String resetPasswordToken;
 }

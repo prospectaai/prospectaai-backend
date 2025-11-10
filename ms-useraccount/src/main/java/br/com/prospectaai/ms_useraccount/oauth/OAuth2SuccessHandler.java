@@ -10,8 +10,10 @@
 package br.com.prospectaai.ms_useraccount.oauth;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -53,15 +55,22 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-
+        OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
+        String provider = oauthToken.getAuthorizedClientRegistrationId();
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
+        String providerUserId = oAuth2User.getAttribute("sub");
+        if (providerUserId == null) {
+            providerUserId = String.valueOf(Objects.requireNonNull(oAuth2User.getAttribute("id")));
+        }
 
         // procura user por e-mail ou faz o pre registro
         UserAccountEntity user = userRepository.findByEmail(email).orElseGet(() -> null );
         boolean isNeedPreRegister = user == null;
         RegisterResponse res = isNeedPreRegister ? preRegisterAccountService.doPreRegister(
                 RegisterRequest.builder()
+                    .provider(provider)
+                    .providerUserId(providerUserId)
                     .displayName(oAuth2User.getAttribute("name"))
                     .email(email)
                     .avatarUrl(oAuth2User.getAttribute("picture"))

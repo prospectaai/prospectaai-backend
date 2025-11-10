@@ -1,2 +1,3 @@
 br\com\prospectaai\shared\event\UserCreatedEvent.class
+br\com\prospectaai\shared\kafka\KafkaTopic.class
 br\com\prospectaai\shared\kafka\KafkaMessageTopic.class

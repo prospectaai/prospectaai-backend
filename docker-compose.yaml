@@ -9,11 +9,17 @@ services:
       - "2181:2181"
     networks:
       - prospectaai-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/2181; echo srvr >&3; read -r -t 2 reply <&3; [[ \"$$reply\" == *\"Zookeeper version\"* || \"$$reply\" == *\"Mode:\"* ]]"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
   kafka:
     image: apache/kafka:3.8.0
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -34,6 +40,39 @@ services:
       timeout: 5s
       retries: 10
 
+  service-discovery:
+    build:
+      context: .
+      dockerfile: ./service-discovery/Dockerfile
+    container_name: service-discovery
+    depends_on:
+      ms-auto-kafka-topic:
+        condition: service_completed_successfully
+    ports:
+      - "8761:8761"
+    networks:
+      - prospectaai-network
+
+  service-gateway:
+    build:
+      context: .
+      dockerfile: ./service-gateway/Dockerfile
+    container_name: service-gateway
+    depends_on:
+      service-discovery:
+        condition: service_started
+      ms-useraccount:
+        condition: service_started
+      ms-billing-sbs:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    networks:
+      - prospectaai-network
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+
   ms-auto-kafka-topic:
     build:
       context: .
@@ -44,6 +83,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
     ports:
       - "9000:9000"
     networks:
@@ -60,10 +100,15 @@ services:
       dockerfile: ./ms-useraccount/Dockerfile
     container_name: ms-useraccount
     depends_on:
+      kafka:
+        condition: service_healthy
       ms-auto-kafka-topic:
         condition: service_completed_successfully
+      service-discovery:
+        condition: service_started
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
       GOOGLE_CLIENT_ID: ${ENV_GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${ENV_GOOGLE_CLIENT_SECRET} 
       GITHUB_CLIENT_ID: ${ENV_GITHUB_CLIENT_ID}
@@ -82,14 +127,42 @@ services:
       dockerfile: ./ms-billing-sbs/Dockerfile
     container_name: ms-billing-sbs
     depends_on:
+      kafka:
+        condition: service_healthy
       ms-auto-kafka-topic:
         condition: service_completed_successfully
+      service-discovery:
+        condition: service_started
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
     ports:
       - "8082:8082"
     networks:
       - prospectaai-network    
+
+  ms-email:
+    build:
+      context: .
+      dockerfile: ./ms-email/Dockerfile
+    container_name: ms-email
+    depends_on:
+      service-discovery:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8083:8083"
+    networks:
+      - prospectaai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 networks:
   prospectaai-network:

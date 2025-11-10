@@ -1,0 +1,36 @@
+application:
+  name: ms-email
+  
+current:
+  year: 2025
+ms:
+  version: 1.0.0
+
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ms-email
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework: INFO
+    org.springframework.kafka: DEBUG
+    org.apache.kafka.clients.consumer: INFO
+    br.com.prospectaai.ms_email: DEBUG

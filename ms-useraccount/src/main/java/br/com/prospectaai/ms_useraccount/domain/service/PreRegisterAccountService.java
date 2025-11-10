@@ -9,6 +9,10 @@
 
 package br.com.prospectaai.ms_useraccount.domain.service;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -25,6 +29,9 @@ import lombok.RequiredArgsConstructor;
 public class PreRegisterAccountService {
     private final PreRegisterAccountRepository preRegisterAccountRepository;
     private final PreRegisterAccountMapper preRegisterAccountMapper;
+
+    @Autowired(required = false)
+    private EmailService emailService;
 
     /**
      * Pre-register a new account.
@@ -57,7 +64,56 @@ public class PreRegisterAccountService {
             // Criar um novo pré-cadastro
             entity = preRegisterAccountRepository.save(preRegisterAccountMapper.toEntity(registerRequest));
         }
-        
+
+        // Gerar código de confirmação de 6 dígitos e validade de 30 minutos
+        String code = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+        entity.setConfirmationCode(code);
+        entity.setConfirmationCodeExpiresAt(LocalDateTime.now().plusMinutes(30));
+        entity.setPreRegisterValidated(Boolean.FALSE);
+        entity.setPreRegisterValidatedAt(null);
+        entity = preRegisterAccountRepository.save(entity);
+
+        // Enviar email de confirmação (se serviço estiver disponível)
+        if (emailService != null) {
+            emailService.sendPreRegisterConfirmationEmail(entity);
+        }
+
         return preRegisterAccountMapper.toResponseWithMessage(entity);
+    }
+
+    /**
+     * Valida o código de confirmação enviado ao email.
+     */
+    public RegisterResponse validateConfirmationCode(String email, String code) {
+        PreRegisterAccountEntity entity = preRegisterAccountRepository.findByEmail(email);
+        if (entity == null) {
+            throw new IllegalArgumentException("Pré-cadastro não encontrado para o email fornecido");
+        }
+
+        if (entity.getPreRegisterValidated() != null && entity.getPreRegisterValidated()) {
+            RegisterResponse res = preRegisterAccountMapper.toResponse(entity);
+            res.setMessage("Pré-cadastro já validado");
+            return res;
+        }
+
+        if (entity.getConfirmationCode() == null || entity.getConfirmationCodeExpiresAt() == null) {
+            throw new IllegalArgumentException("Código de confirmação não encontrado para este pré-cadastro");
+        }
+
+        if (!entity.getConfirmationCode().equals(code)) {
+            throw new IllegalArgumentException("Código de confirmação inválido");
+        }
+
+        if (LocalDateTime.now().isAfter(entity.getConfirmationCodeExpiresAt())) {
+            throw new IllegalArgumentException("Código de confirmação expirado");
+        }
+
+        entity.setPreRegisterValidated(Boolean.TRUE);
+        entity.setPreRegisterValidatedAt(LocalDateTime.now());
+        entity = preRegisterAccountRepository.save(entity);
+
+        RegisterResponse res = preRegisterAccountMapper.toResponse(entity);
+        res.setMessage("Código validado com sucesso");
+        return res;
     }
 }

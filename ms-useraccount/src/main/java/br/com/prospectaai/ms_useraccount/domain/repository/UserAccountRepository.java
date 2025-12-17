@@ -18,4 +18,5 @@ import br.com.prospectaai.ms_useraccount.domain.entity.UserAccountEntity;
 
 public interface UserAccountRepository extends JpaRepository<UserAccountEntity, UUID> {
     Optional<UserAccountEntity> findByEmail(String email);
+    boolean existsByEmail(String email);
 }

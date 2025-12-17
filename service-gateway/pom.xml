@@ -44,6 +44,12 @@
 			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
 		</dependency>
 
+		<!-- Compartilhados (DTOs, enums) -->
+		<dependency>
+			<groupId>br.com.prospectaai</groupId>
+			<artifactId>shared</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

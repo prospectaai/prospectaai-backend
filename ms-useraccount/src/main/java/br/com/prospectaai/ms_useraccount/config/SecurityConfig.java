@@ -58,6 +58,8 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
             // Autenticação OAuth2
             .oauth2Login(oauth -> oauth
+                .authorizationEndpoint(authz -> authz.baseUri("/api/v1/auth/oauth2/authorization"))
+                .redirectionEndpoint(redir -> redir.baseUri("/api/v1/auth/login/oauth2/code/*"))
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                 .successHandler(oAuth2SuccessHandler)
             );

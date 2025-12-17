@@ -4,6 +4,7 @@
 
 package br.com.prospectaai.ms_useraccount.domain.dto;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -15,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PreRegisterValidatedResponse {
     private UUID preRegisterId;
-    private String email;
     private String token;
+    private LocalDateTime expiredAt;
     private String message;
 }

@@ -10,6 +10,8 @@
 package br.com.prospectaai.ms_useraccount.oauth;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Objects;
 
 import org.springframework.security.core.Authentication;
@@ -17,6 +19,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterRequest;
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterResponse;
@@ -36,6 +39,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final UserAccountRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PreRegisterAccountService preRegisterAccountService;
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
 
     /**
      * Trata o sucesso da autenticação OAuth2.
@@ -79,15 +84,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             ) : null;
 
         // Gera JWT
-        String jwt = isNeedPreRegister ? jwtTokenProvider.generateToken(res) : jwtTokenProvider.generateToken(user);
+        String jwt = isNeedPreRegister ? res.getPreRegisterId().toString() : jwtTokenProvider.generateToken(user);
         
         // Redireciona para checkout se for pré-cadastro ou para página de sucesso se já tiver conta
         if (isNeedPreRegister) {
-            // Redireciona para checkout com o token JWT
-            response.sendRedirect("/checkout?token=" + jwt);
+            // Redireciona para checkout do frontend com o preRegisterId
+            response.sendRedirect(frontendBaseUrl + "/checkout?prID=" + jwt);
         } else {
-            // Usuário já tem conta, redireciona para página de sucesso
-            response.sendRedirect("/oauth2/success?token=" + jwt);
+            LocalDateTime expiredAt = LocalDateTime.ofInstant(jwtTokenProvider.extractExpiration(jwt).toInstant(), ZoneId.systemDefault());
+            // Usuário já tem conta, redireciona para dashboard do frontend com token JWT
+            response.sendRedirect(frontendBaseUrl + "/auth/callback?token=" + jwt + "&expiredAt=" + expiredAt);
         }
     }
 }

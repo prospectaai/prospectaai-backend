@@ -12,9 +12,16 @@ package br.com.prospectaai.ms_useraccount.domain.validation;
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterRequest;
 import br.com.prospectaai.ms_useraccount.domain.enums.PreRegisterScope;
 import br.com.prospectaai.ms_useraccount.domain.repository.PreRegisterAccountRepository;
+import br.com.prospectaai.ms_useraccount.domain.repository.UserAccountRepository;
 
 public class PreRegisterAccountValidation {
-    public static void validatePreRegister(RegisterRequest registerRequest, PreRegisterAccountRepository preRegisterAccountRepository) {
+    public static void validatePreRegister(RegisterRequest registerRequest, UserAccountRepository userAccountRepository, PreRegisterAccountRepository preRegisterAccountRepository) {
+        // Verificamos se já existe um usuário com este email no repositório de usuários
+        // Se existir, lançamos exceção indicando que o usuário já está registrado
+        if (userAccountRepository.existsByEmail(registerRequest.getEmail())) {
+            throw new IllegalArgumentException("Email já registrado");
+        }
+        
         // Verificamos se já existe um usuário com este email no repositório de pré-cadastros
         // Se existir, em vez de lançar exceção, vamos atualizar o pré-cadastro existente
         // Isso permite que o usuário tente novamente o checkout se não completou anteriormente

@@ -53,4 +53,40 @@ public class EmailService {
             }
         });
     }
+
+    public void sendResetPasswordEmail(String recipient, String displayName, String link) {
+        String content = "Olá, " + displayName + "!\n\n" +
+                "Recebemos uma solicitação para redefinir sua senha.\n" +
+                "Clique no link abaixo para continuar:\n" +
+                link + "\n\n" +
+                "Se você não solicitou a alteração, ignore este email.\n\n" +
+                "Atenciosamente,\nEquipe Prospecta AI 💙";
+
+        KafkaMessageTopic<?> messageTopic = KafkaMessageTopic.builder()
+            .applicationName("")
+            .eventType("sender")
+            .timestamp(Instant.now().toEpochMilli())
+            .messageData(
+                EmailEnvelope.builder()
+                    .recipient(recipient)
+                    .title("Redefinição de Senha - Prospecta AI")
+                    .emailContent(content)
+                    .emailType("reset_password")
+                    .metadata(null)
+                    .build()
+            )
+            .build();
+
+        var future = kafkaTemplate.send(KafkaTopic.EMAIL_SENDER.getTopic(), messageTopic);
+        future.whenComplete((result, ex) -> {
+            if (ex == null && result != null) {
+                var meta = result.getRecordMetadata();
+                System.out.println("Kafka SEND OK -> topic=" + meta.topic() +
+                        ", partition=" + meta.partition() + ", offset=" + meta.offset());
+            } else if (ex != null) {
+                System.err.println("Kafka SEND FAIL -> " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        });
+    }
 }

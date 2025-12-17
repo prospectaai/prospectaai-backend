@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,11 +43,41 @@ public class UserAccountService {
             throw new IllegalArgumentException("Pré-cadastro não encontrado para o ID fornecido");
         }
         PreRegisterAccountEntity preRegisterAccountEntity = optionalPreRegisterAccountEntity.get();
+        // Se já existir usuário com este email, não criar novamente (idempotente)
+        Optional<UserAccountEntity> existingUserOpt = this.userAccountRepository.findByEmail(preRegisterAccountEntity.getEmail());
+        if (existingUserOpt.isPresent()) {
+            UserAccountEntity existingUser = existingUserOpt.get();
+
+            switch (preRegisterAccountEntity.getScope()) {
+                case INTERNAL -> {
+                    // Cria credencial local apenas se ainda não existir
+                    if (existingUser.getLocalCredential() == null) {
+                        if(!localCredentialService.createLocalCredential(existingUser, preRegisterAccountEntity.getPasswordHash()))
+                            throw new IllegalArgumentException("Erro ao criar credenciais locais");
+                    }
+                }
+                case OAUTH2 -> {
+                    // Cria credencial OAuth2 apenas se não existir para o provedor
+                    if(!oAuthCredentialService.createOAuthCredential(existingUser, preRegisterAccountEntity))
+                        throw new IllegalArgumentException("Erro ao criar credenciais OAuth2");
+                }
+                default -> throw new IllegalArgumentException("Escopo de registro desconhecido");
+            }
+
+            System.out.println("[Checkout] Usuário já existente, não será reinserido: " + existingUser.getEmail());
+            String token = jwtTokenProvider.generateToken(existingUser);
+            return new LoginResponse(
+                token,
+                LocalDateTime.ofInstant(jwtTokenProvider.extractExpiration(token).toInstant(), ZoneId.systemDefault())
+            );
+        }
+
+        // Não existe usuário: criar novo
         UserAccountEntity userAccountEntity = this.userAccountRepository.save(userAccountMapper.fromPreRegister(preRegisterAccountEntity));
 
         switch (preRegisterAccountEntity.getScope()) {
             case INTERNAL -> {
-                if(localCredentialService.createLocalCredential(userAccountEntity, preRegisterAccountEntity.getPasswordHash()))
+                if(!localCredentialService.createLocalCredential(userAccountEntity, preRegisterAccountEntity.getPasswordHash()))
                     throw new IllegalArgumentException("Erro ao criar credenciais locais");
             }
             case OAUTH2 -> {
@@ -57,11 +89,12 @@ public class UserAccountService {
 
         // enviar um email de boas vindas
 
+        System.out.println("Usuario com email completou seu cadastro e finalmente eh um usuário oficial do prospectaai: " + userAccountEntity.getEmail());
         // autenticar o usuário
+        String token = jwtTokenProvider.generateToken(userAccountEntity);
         return new LoginResponse(
-                jwtTokenProvider.generateToken(userAccountEntity),
-                userAccountEntity.getDisplayName(),
-                userAccountEntity.getEmail()
+            token,
+            LocalDateTime.ofInstant(jwtTokenProvider.extractExpiration(token).toInstant(), ZoneId.systemDefault())
         );
     }
 }

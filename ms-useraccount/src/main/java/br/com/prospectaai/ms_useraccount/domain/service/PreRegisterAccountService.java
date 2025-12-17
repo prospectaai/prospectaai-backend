@@ -11,6 +11,7 @@ package br.com.prospectaai.ms_useraccount.domain.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,14 +20,17 @@ import org.springframework.validation.annotation.Validated;
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterRequest;
 import br.com.prospectaai.ms_useraccount.domain.dto.RegisterResponse;
 import br.com.prospectaai.ms_useraccount.domain.entity.PreRegisterAccountEntity;
+import br.com.prospectaai.ms_useraccount.domain.enums.PreRegisterScope;
 import br.com.prospectaai.ms_useraccount.domain.mapper.PreRegisterAccountMapper;
 import br.com.prospectaai.ms_useraccount.domain.repository.PreRegisterAccountRepository;
+import br.com.prospectaai.ms_useraccount.domain.repository.UserAccountRepository;
 import br.com.prospectaai.ms_useraccount.domain.validation.PreRegisterAccountValidation;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class PreRegisterAccountService {
+    private final UserAccountRepository userAccountRepository;
     private final PreRegisterAccountRepository preRegisterAccountRepository;
     private final PreRegisterAccountMapper preRegisterAccountMapper;
 
@@ -42,7 +46,7 @@ public class PreRegisterAccountService {
      * @throws IllegalArgumentException if the email is already registered or the password does not meet the requirements
      */
     public RegisterResponse doPreRegister(@Validated RegisterRequest registerRequest) {
-        PreRegisterAccountValidation.validatePreRegister(registerRequest, preRegisterAccountRepository);
+        PreRegisterAccountValidation.validatePreRegister(registerRequest, userAccountRepository, preRegisterAccountRepository);
         
         // Verificar se já existe um pré-cadastro com este email
         PreRegisterAccountEntity entity;
@@ -65,29 +69,47 @@ public class PreRegisterAccountService {
             entity = preRegisterAccountRepository.save(preRegisterAccountMapper.toEntity(registerRequest));
         }
 
-        // Gerar código de confirmação de 6 dígitos e validade de 30 minutos
-        String code = String.format("%06d", new SecureRandom().nextInt(1_000_000));
-        entity.setConfirmationCode(code);
-        entity.setConfirmationCodeExpiresAt(LocalDateTime.now().plusMinutes(30));
-        entity.setPreRegisterValidated(Boolean.FALSE);
-        entity.setPreRegisterValidatedAt(null);
-        entity = preRegisterAccountRepository.save(entity);
+        if(registerRequest.getScope().equals(PreRegisterScope.INTERNAL)) {
+            // Gerar código de confirmação de 6 dígitos e validade de 30 minutos
+            String code = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+            entity.setConfirmationCode(code);
+            entity.setConfirmationCodeExpiresAt(LocalDateTime.now().plusMinutes(30));
+            entity.setPreRegisterValidated(Boolean.FALSE);
+            entity.setPreRegisterValidatedAt(null);
+            entity = preRegisterAccountRepository.save(entity);
 
-        // Enviar email de confirmação (se serviço estiver disponível)
-        if (emailService != null) {
-            emailService.sendPreRegisterConfirmationEmail(entity);
+            System.out.println("[UserAccount][PreRegisterAccountService] Código de confirmação gerado: preRegisterId=" +
+                    entity.getPreRegisterId() + ", code=" + code);
+
+            // Enviar email de confirmação (se serviço estiver disponível)
+            if (emailService != null) {
+                emailService.sendPreRegisterConfirmationEmail(entity);
+            }
+        }
+        else {
+            entity.setPreRegisterValidated(Boolean.TRUE);
+            entity.setPreRegisterValidatedAt(LocalDateTime.now());
+            entity = preRegisterAccountRepository.save(entity);
         }
 
         return preRegisterAccountMapper.toResponseWithMessage(entity);
     }
 
+     /**
+     * Valida se o preRegisterId existe no banco de dados.
+     */
+    public boolean validatePreRegisterId(UUID preRegisterId) {
+        return preRegisterAccountRepository.existsById(preRegisterId) && 
+        preRegisterAccountRepository.findById(preRegisterId).get().getPreRegisterValidated();
+    }
+
     /**
      * Valida o código de confirmação enviado ao email.
      */
-    public RegisterResponse validateConfirmationCode(String email, String code) {
-        PreRegisterAccountEntity entity = preRegisterAccountRepository.findByEmail(email);
+    public RegisterResponse validateConfirmationCode(UUID preRegisterId, String code) {
+        PreRegisterAccountEntity entity = preRegisterAccountRepository.findById(preRegisterId).orElse(null);
         if (entity == null) {
-            throw new IllegalArgumentException("Pré-cadastro não encontrado para o email fornecido");
+            throw new IllegalArgumentException("Pré-cadastro não encontrado para o ID fornecido");
         }
 
         if (entity.getPreRegisterValidated() != null && entity.getPreRegisterValidated()) {
@@ -114,6 +136,32 @@ public class PreRegisterAccountService {
 
         RegisterResponse res = preRegisterAccountMapper.toResponse(entity);
         res.setMessage("Código validado com sucesso");
+        return res;
+    }
+
+    public RegisterResponse resendConfirmationCode(UUID preRegisterId) {
+        PreRegisterAccountEntity entity = preRegisterAccountRepository.findById(preRegisterId).orElse(null);
+        if (entity == null) {
+            throw new IllegalArgumentException("Pré-cadastro não encontrado para o ID fornecido");
+        }
+
+        if (Boolean.TRUE.equals(entity.getPreRegisterValidated())) {
+            RegisterResponse res = preRegisterAccountMapper.toResponse(entity);
+            res.setMessage("Pré-cadastro já validado");
+            return res;
+        }
+
+        String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        entity.setConfirmationCode(code);
+        entity.setConfirmationCodeExpiresAt(java.time.LocalDateTime.now().plusMinutes(30));
+        entity = preRegisterAccountRepository.save(entity);
+
+        if (emailService != null) {
+            emailService.sendPreRegisterConfirmationEmail(entity);
+        }
+
+        RegisterResponse res = preRegisterAccountMapper.toResponse(entity);
+        res.setMessage("Código reenviado com sucesso");
         return res;
     }
 }

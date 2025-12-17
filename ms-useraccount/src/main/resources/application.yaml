@@ -5,6 +5,7 @@ ms:
 
 server:
   port: 8081  
+  forward-headers-strategy: framework
 
 eureka:
   client:
@@ -30,10 +31,12 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: email, profile
+            redirect-uri: "http://127.0.0.1:8080/api/v1/auth/login/oauth2/code/{registrationId}"
           github:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
             scope: read:user, user:email
+            redirect-uri: "http://127.0.0.1:8080/api/v1/auth/login/oauth2/code/{registrationId}"
 
 logging:
   level:
@@ -44,3 +47,11 @@ security:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION-MS}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION}
+
+billing:
+  service:
+    base-url: ${BILLING_SERVICE_BASE_URL:http://ms-billing-sbs}
+
+# URL base do frontend para redirects pós-OAuth2
+frontend:
+  base-url: ${FRONTEND_BASE_URL:http://localhost:4201}

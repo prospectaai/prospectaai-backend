@@ -9,6 +9,8 @@
 
 package br.com.prospectaai.ms_useraccount.domain.dto;
 
+import java.time.LocalDateTime;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +20,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class LoginResponse {
     private String token;
-    private String name;
-    private String email;
+    private LocalDateTime expiredAt;
 }

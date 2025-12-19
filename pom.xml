@@ -17,6 +17,7 @@
         <module>ms-billing-sbs</module>
         <module>ms-auto-kafka-topic</module>
         <module>ms-email</module>
+        <module>ms-async-task</module>
     </modules>
 
     <properties>

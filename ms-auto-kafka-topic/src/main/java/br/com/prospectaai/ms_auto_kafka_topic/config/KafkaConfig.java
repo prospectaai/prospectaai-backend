@@ -27,4 +27,8 @@ public class KafkaConfig {
     public NewTopic emailSenderTopic() {
         return new NewTopic(KafkaTopic.EMAIL_SENDER.getTopic(), 1,  (short) 1);
     }
+
+    public NewTopic n8nAsyncTaskTopic() {
+        return new NewTopic(KafkaTopic.N8N_ASYNC_TASK.getTopic(), 1,  (short) 1);
+    }
 }

@@ -168,6 +168,24 @@ services:
       timeout: 5s
       retries: 10
 
+  ms-async-task:
+    build:
+      context: .
+      dockerfile: ./ms-async-task/Dockerfile
+    container_name: ms-async-task
+    depends_on:
+      service-discovery:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8084:8084"
+    networks:
+      - prospectaai-network
+
 networks:
   prospectaai-network:
     driver: bridge

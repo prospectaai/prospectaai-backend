@@ -10,7 +10,9 @@ COPY ./ms-useraccount ./ms-useraccount
 COPY ./ms-billing-sbs ./ms-billing-sbs
 COPY ./ms-auto-kafka-topic ./ms-auto-kafka-topic
 COPY ./ms-email ./ms-email
+COPY ./sdk/prospection-sdk ./sdk/prospection-sdk
 COPY ./ms-async-task ./ms-async-task
+COPY ./ms-notification ./ms-notification
 
 # Build de todos os módulos via POM pai
 RUN mvn clean install -DskipTests -f ./pom.xml

@@ -28,7 +28,28 @@ public class KafkaConfig {
         return new NewTopic(KafkaTopic.EMAIL_SENDER.getTopic(), 1,  (short) 1);
     }
 
-    public NewTopic n8nAsyncTaskTopic() {
-        return new NewTopic(KafkaTopic.N8N_ASYNC_TASK.getTopic(), 1,  (short) 1);
+        @Bean
+    public NewTopic notificationTopic() {
+        return new NewTopic(KafkaTopic.NOTIFICATION.getTopic(), 1,  (short) 1);
     }
+
+    // @Bean
+    // public NewTopic n8nAsyncTaskTopic() {
+    //     return new NewTopic(KafkaTopic.N8N_ASYNC_TASK.getTopic(), 6,  (short) 1);
+    // }
+
+    // @Bean
+    // public NewTopic n8nAsyncTaskErrorTopic() {
+    //     return new NewTopic(KafkaTopic.N8N_ASYNC_TASK_ERROR.getTopic(), 6, (short) 1);
+    // }
+
+    // @Bean
+    // public NewTopic n8nAsyncTaskRequestTopic() {
+    //     return new NewTopic(KafkaTopic.N8N_ASYNC_TASK_REQUEST.getTopic(), 6, (short) 1);
+    // }
+
+    // @Bean
+    // public NewTopic n8nAsyncTaskResponseTopic() {
+    //     return new NewTopic(KafkaTopic.N8N_ASYNC_TASK_RESPONSE.getTopic(), 6, (short) 1);
+    // }
 }

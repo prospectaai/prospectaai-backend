@@ -1,0 +1,3 @@
+br\com\prospectaai\sdk\prospection\Prospector.class
+br\com\prospectaai\sdk\prospection\ProspectorFactory.class
+br\com\prospectaai\sdk\prospection\GoogleMapsProspector.class

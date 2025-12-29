@@ -21,6 +21,12 @@ public class GatewayConfig {
                 .route("ms-billing-sbs", r -> r.path("/api/v1/billing/**")
                         .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://ms-billing-sbs"))
+                .route("ms-async-task", r -> r.path("/api/v1/async/**")
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://ms-async-task"))
+                .route("ms-notification", r -> r.path("/api/v1/notification/**")
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://ms-notification"))
                 .build();
     }
 }

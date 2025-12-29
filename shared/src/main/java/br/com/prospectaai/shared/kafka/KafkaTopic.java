@@ -5,7 +5,11 @@ public enum KafkaTopic {
     USER_UPDATED("user.updated"),
     USER_DELETED("user.deleted"),
     EMAIL_SENDER("email.sender"),
-    N8N_ASYNC_TASK("async.task.n8n");
+    N8N_ASYNC_TASK("async.task.n8n"),
+    N8N_ASYNC_TASK_REQUEST("async.task.n8n.request"),
+    N8N_ASYNC_TASK_RESPONSE("async.task.n8n.response"),
+    N8N_ASYNC_TASK_ERROR("async.task.n8n.error"),
+    NOTIFICATION("notification");
 
     private final String topic;
 

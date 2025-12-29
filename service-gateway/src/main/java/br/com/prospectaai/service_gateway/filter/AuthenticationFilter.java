@@ -45,31 +45,45 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 }
 
                 String token = authHeader.substring(7);
-                return webClientBuilder.build()
+                Mono<String> emailMono = webClientBuilder.build()
                         .get()
                         .uri(userAccountBaseUrl + "/api/v1/auth/validate")
                         .headers(h -> h.set(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                         .retrieve()
                         .bodyToMono(String.class)
-                        .map(response -> exchange.mutate()
-                                .request(
-                                    exchange.getRequest()
-                                        .mutate()
-                                        .header("X-Auth-User-Id", response)
-                                        .build()
-                                )
-                                .build())
-                        .flatMap(chain::filter)
                         .onErrorResume(error -> {
                             if (error instanceof WebClientResponseException wcre) {
                                 HttpStatus status = HttpStatus.resolve(wcre.getRawStatusCode());
                                 if (status == HttpStatus.UNAUTHORIZED) {
-                                    return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
+                                    return Mono.error(new IllegalArgumentException("unauthorized"));
                                 }
-                                return onError(exchange, "Auth validation failed: " + wcre.getStatusCode(), HttpStatus.BAD_GATEWAY);
+                                return Mono.error(new IllegalStateException("auth_upstream_" + wcre.getRawStatusCode()));
                             }
-                            return onError(exchange, "Auth validation error", HttpStatus.BAD_GATEWAY);
+                            return Mono.error(new IllegalStateException("auth_upstream_error"));
                         });
+
+                return emailMono
+                        .flatMap(response -> {
+                            String email = response == null ? null : response.trim();
+                            if (email == null || email.isBlank() || !isValidEmail(email)) {
+                                return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
+                            }
+                            ServerWebExchange mutated = exchange.mutate()
+                                    .request(
+                                        exchange.getRequest()
+                                            .mutate()
+                                            .header("X-Auth-User-Id", email)
+                                            .build()
+                                    )
+                                    .build();
+                            return chain.filter(mutated);
+                        })
+                        .onErrorResume(IllegalArgumentException.class, e ->
+                                onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED)
+                        )
+                        .onErrorResume(IllegalStateException.class, e ->
+                                onError(exchange, "Auth validation failed", HttpStatus.BAD_GATEWAY)
+                        );
             }
             return chain.filter(exchange);
         };
@@ -79,6 +93,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         System.out.println("[Gateway][AuthFilter] error: " + message + ", status=" + httpStatus);
         exchange.getResponse().setStatusCode(httpStatus);
         return exchange.getResponse().setComplete();
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     }
 
     public static class Config {

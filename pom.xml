@@ -18,6 +18,8 @@
         <module>ms-auto-kafka-topic</module>
         <module>ms-email</module>
         <module>ms-async-task</module>
+        <module>ms-notification</module>
+        <module>./sdk/prospection-sdk</module>
     </modules>
 
     <properties>

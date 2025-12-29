@@ -1,0 +1,21 @@
+current:
+  year: 2025
+ms:
+  version: 1.0.0
+
+server:
+  port: 8085  
+  forward-headers-strategy: framework
+
+eureka:
+  client:
+    service-url.defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+  instance:
+    prefer-ip-address: true
+
+spring:
+  application:
+    name: ms-notification
+  kafka: 
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    

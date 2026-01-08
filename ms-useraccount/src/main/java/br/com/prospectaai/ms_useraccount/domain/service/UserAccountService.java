@@ -97,4 +97,8 @@ public class UserAccountService {
             LocalDateTime.ofInstant(jwtTokenProvider.extractExpiration(token).toInstant(), ZoneId.systemDefault())
         );
     }
+
+    public boolean isUserExist(String email) {
+        return userAccountRepository.findByEmail(email).isPresent();
+    }
 }

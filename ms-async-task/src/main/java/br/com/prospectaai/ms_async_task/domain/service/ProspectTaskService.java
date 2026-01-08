@@ -18,6 +18,7 @@ import br.com.prospectaai.sdk.prospection.Prospector;
 import br.com.prospectaai.sdk.prospection.ProspectorFactory;
 import br.com.prospectaai.shared.dto.async.AsyncTaskMessage;
 import br.com.prospectaai.shared.dto.async.AsyncTaskMessageType;
+import br.com.prospectaai.shared.dto.async.AsyncTaskPanelDto;
 import br.com.prospectaai.shared.dto.async.AsyncTaskPlatform;
 import br.com.prospectaai.shared.dto.analytics.AnalyticsOverview;
 import br.com.prospectaai.shared.dto.notification.AsyncTaskNotification;
@@ -34,7 +35,19 @@ public class ProspectTaskService {
     private final KafkaTemplate<String, KafkaMessageTopic<?>> kafkaTemplate;
     private final AnalyticsService analyticsService;
 
-    public void call(String query, AsyncTaskPlatform platform) {
+    public List<AsyncTaskPanelDto> getAllProcessing(String userEmail) {
+        List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatus(userEmail, AsyncTaskStatus.PROCESSING);
+        return tasks.stream()
+            .<AsyncTaskPanelDto>map(task -> AsyncTaskPanelDto.builder()
+                .taskId(task.getId())
+                .query(task.getQuery())
+                .platform(task.getPlatform())
+                .status(br.com.prospectaai.shared.dto.async.AsyncTaskStatus.valueOf(task.getStatus().name()))
+                .build())
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    public void call(String query, AsyncTaskPlatform platform, String userEmail) {
         AsyncTaskMessage message = AsyncTaskMessage.builder()
             .type(AsyncTaskMessageType.PROCESSING)
             .platform(platform)
@@ -42,6 +55,7 @@ public class ProspectTaskService {
             .build();
 
         ProspectTask task = new ProspectTask();
+        task.setUserEmail(userEmail);
         task.setQuery(query);
         task.setPlatform(platform);
         task.setStatus(AsyncTaskStatus.PROCESSING);
@@ -49,13 +63,13 @@ public class ProspectTaskService {
         task.setUpdatedAt(Instant.now());
         task = taskRepository.save(task);
 
-        sendProcessingEvent(task);
+        sendProcessingEvent(task, userEmail);
 
         final Long taskId = task.getId();
-        VirtualThread.callAsync(() -> prospect(message, taskId));
+        VirtualThread.callAsync(() -> prospect(message, taskId, userEmail));
     }
 
-    private void prospect(AsyncTaskMessage message, Long taskId) {
+    private void prospect(AsyncTaskMessage message, Long taskId, String userEmail) {
         try {
             Prospector prospector = ProspectorFactory.create(message.getPlatform(),
                     java.util.Map.of("serpapi.apiKey", serpApiKey));
@@ -88,7 +102,8 @@ public class ProspectTaskService {
             task.setUpdatedAt(Instant.now());
             taskRepository.save(task);
 
-            sendProcessedEvent(task);
+            Thread.sleep(15000);
+            sendProcessedEvent(task, userEmail);
         } catch (Exception e) {
             System.err.println("[prospection-sdk] error -> " + e.getMessage());
             e.printStackTrace();
@@ -98,7 +113,7 @@ public class ProspectTaskService {
     @Value("${serpapi.api-key}")
     private String serpApiKey;
 
-    private void sendProcessingEvent(ProspectTask task) {
+    private void sendProcessingEvent(ProspectTask task, String userEmail) {
         AsyncTaskNotification payload = new AsyncTaskNotification(
                 task.getId(),
                 task.getQuery(),
@@ -106,16 +121,21 @@ public class ProspectTaskService {
                 br.com.prospectaai.shared.dto.async.AsyncTaskStatus.PROCESSING,
                 null
         );
+
         KafkaMessageTopic<AsyncTaskNotification> msg = KafkaMessageTopic.<AsyncTaskNotification>builder()
                 .applicationName("ms-async-task")
                 .eventType(NotificationType.ASYNC_TASK_PROCESSING_STARTED.name())
                 .timestamp(System.currentTimeMillis())
                 .messageData(payload)
+                .userEmail(userEmail)
+                .title("Nova prospecção iniciada! Clique para mais detalhes. ")
+                .description("Uma nova prospecção na plataforma " + task.getPlatform() + " buscando \"" + task.getQuery() + "\" foi iniciada! Acompanhe o progresso no painel de tarefas no canto inferior da tela.")
                 .build();
+
         kafkaTemplate.send("notification", msg);
     }
 
-    private void sendProcessedEvent(ProspectTask task) {
+    private void sendProcessedEvent(ProspectTask task, String userEmail) {
         AnalyticsOverview overview = analyticsService.getOverview();
         AsyncTaskNotification payload = new AsyncTaskNotification(
                 task.getId(),
@@ -129,6 +149,9 @@ public class ProspectTaskService {
                 .eventType(NotificationType.ASYNC_TASK_PROCESSED.name())
                 .timestamp(System.currentTimeMillis())
                 .messageData(payload)
+                .userEmail(userEmail)
+                .title("Prossecção finalizada! Clique para mais detalhes. ")
+                .description("A prospecção na plataforma " + task.getPlatform() + " buscando \"" + task.getQuery() + "\" foi finalizada! Clique para ver os resultados.")
                 .build();
         kafkaTemplate.send("notification", msg);
     }

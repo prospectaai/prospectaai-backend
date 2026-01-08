@@ -12,15 +12,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, XAuthUserFilter xAuthUserFilter) throws Exception {
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/v1/notification/**").authenticated()
+                .requestMatchers("/api/v1/notification/**").permitAll()
                 .anyRequest().permitAll()
         );
-        http.addFilterBefore(new XAuthUserFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(xAuthUserFilter, UsernamePasswordAuthenticationFilter.class);
         http.httpBasic(Customizer.withDefaults());
         return http.build();
     }

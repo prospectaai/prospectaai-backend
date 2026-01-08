@@ -28,7 +28,7 @@ public class KafkaConfig {
         return new NewTopic(KafkaTopic.EMAIL_SENDER.getTopic(), 1,  (short) 1);
     }
 
-        @Bean
+    @Bean
     public NewTopic notificationTopic() {
         return new NewTopic(KafkaTopic.NOTIFICATION.getTopic(), 1,  (short) 1);
     }

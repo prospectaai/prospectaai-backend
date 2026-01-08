@@ -2,8 +2,12 @@ package br.com.prospectaai.ms_async_task.domain.repository;
 
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectTask;
 import br.com.prospectaai.ms_async_task.domain.enums.AsyncTaskStatus;
+
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ProspectTaskRepository extends JpaRepository<ProspectTask, Long> {
     long countByStatus(AsyncTaskStatus status);
@@ -15,4 +19,12 @@ public interface ProspectTaskRepository extends JpaRepository<ProspectTask, Long
           and not exists (select 1 from ProspectionRecord r where r.task = t)
         """)
     long countProcessingWithoutRecords();
+
+    @Query("""
+        select t
+        from ProspectTask t
+        where t.userEmail = :userEmail
+          and t.status = :status
+        """)
+    List<ProspectTask> findByUserEmailAndStatus(@Param(value = "userEmail") String userEmail, @Param(value = "status") AsyncTaskStatus status);
 }

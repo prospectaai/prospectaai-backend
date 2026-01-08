@@ -38,6 +38,8 @@ public class JwtTokenProvider {
     @Value("${security.jwt.reset-expiration-ms:900000}")
     private long resetExpirationMs;
 
+    // Removido o acoplamento com UserAccountService para evitar ciclo de beans
+
     public String generateToken(RegisterResponse res) {
         return Jwts.builder()
                 .setSubject(res.getEmail())
@@ -90,12 +92,10 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            System.out.println("[UserAccount][JwtTokenProvider] validating token");
             Jwts.parserBuilder()
                 .setSigningKey(Keys.hmacShaKeyFor(getSigningKey()))
                 .build()
                 .parseClaimsJws(token);
-            System.out.println("[UserAccount][JwtTokenProvider] token is valid");
             return true;
         } catch (JwtException | IllegalArgumentException | NullPointerException e) {
             System.out.println("[UserAccount][JwtTokenProvider] token invalid: " + e.getMessage());

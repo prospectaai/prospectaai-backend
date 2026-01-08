@@ -2,6 +2,10 @@ package br.com.prospectaai.ms_async_task.kafka;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -25,7 +29,7 @@ public class KafkaConsumerConfig {
     @Bean
     public ConsumerFactory<String, KafkaMessageTopic<?>> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapKafkaServer);
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, resolveBootstrapServers(bootstrapKafkaServer));
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
@@ -33,6 +37,9 @@ public class KafkaConsumerConfig {
         config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, KafkaMessageTopic.class.getName());
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "ms-async-task-group");
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        config.put(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG, 1000);
+        config.put(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 30000);
+        config.put(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG, 1000);
 
         return new DefaultKafkaConsumerFactory<>(
             config,
@@ -48,5 +55,24 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(6);
         return factory;
+    }
+
+    private String resolveBootstrapServers(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return "localhost:9092";
+        }
+        String[] entries = configured.split(",");
+        List<String> valid = new ArrayList<>();
+        for (String e : entries) {
+            String entry = e.trim();
+            if (entry.isEmpty()) continue;
+            String host = entry.contains(":") ? entry.substring(0, entry.indexOf(':')) : entry;
+            String port = entry.contains(":") ? entry.substring(entry.indexOf(':') + 1) : "9092";
+            try {
+                InetAddress.getAllByName(host);
+                valid.add(host + ":" + port);
+            } catch (UnknownHostException ignored) {}
+        }
+        return valid.isEmpty() ? "localhost:9092" : String.join(",", valid);
     }
 }

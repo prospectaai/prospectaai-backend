@@ -14,14 +14,14 @@ import br.com.prospectaai.ms_useraccount.domain.entity.UserAccountEntity;
 import br.com.prospectaai.ms_useraccount.domain.repository.LocalCredentialRepository;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class LocalCredentialService {
     private final LocalCredentialRepository localCredentialRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public boolean createLocalCredential(UserAccountEntity account, String passwordHash) {
         LocalCredentialEntity localCredential = new LocalCredentialEntity();

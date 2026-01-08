@@ -2,6 +2,7 @@ services:
   zookeeper:
     image: ubuntu/zookeeper:latest
     container_name: zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -14,13 +15,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
   kafka:
     image: apache/kafka:3.8.0
     container_name: kafka
+    restart: unless-stopped
+    user: "0:0"
     depends_on:
       zookeeper:
         condition: service_healthy
     environment:
+      KAFKA_CLUSTER_ID: MkU3N0UxM0Q5Njg5NDM5NTE0NDU5OThE
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:9094,CONTROLLER://:9093
@@ -32,6 +41,29 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    command: >
+      sh -c "
+      CLID=$$KAFKA_CLUSTER_ID;
+      if [ -z \"$$CLID\" ]; then CLID=MkU3N0UxM0Q5Njg5NDM5NTE0NDU5OThE; fi;
+      rm -rf /tmp/kraft-combined-logs/bootstrap.checkpoint.tmp;
+      if [ ! -f /tmp/kraft-combined-logs/meta.properties ]; then
+        rm -rf /tmp/kraft-combined-logs;
+        mkdir -p /tmp/kraft-combined-logs;
+        /opt/kafka/bin/kafka-storage.sh format -t $$CLID -c /opt/kafka/config/kraft/server.properties;
+      fi;
+      cp /opt/kafka/config/kraft/server.properties /tmp/server.properties;
+      echo 'listeners=PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093' >> /tmp/server.properties;
+      echo 'advertised.listeners=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094' >> /tmp/server.properties;
+      echo 'listener.security.protocol.map=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT' >> /tmp/server.properties;
+      echo 'inter.broker.listener.name=PLAINTEXT' >> /tmp/server.properties;
+      echo 'controller.listener.names=CONTROLLER' >> /tmp/server.properties;
+      echo 'controller.quorum.voters=1@kafka:9093' >> /tmp/server.properties;
+      echo 'log.dirs=/tmp/kraft-combined-logs' >> /tmp/server.properties;
+      echo 'auto.create.topics.enable=true' >> /tmp/server.properties;
+      echo 'offsets.topic.replication.factor=1' >> /tmp/server.properties;
+      /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
+      "
     ports:
       - "9092:9092"
       - "9094:9094"
@@ -42,12 +74,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   service-discovery:
     build:
       context: .
       dockerfile: ./service-discovery/Dockerfile
     container_name: service-discovery
+    restart: unless-stopped
     depends_on:
       ms-auto-kafka-topic:
         condition: service_completed_successfully
@@ -55,12 +95,18 @@ services:
       - "8761:8761"
     networks:
       - prospectaai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   service-gateway:
     build:
       context: .
       dockerfile: ./service-gateway/Dockerfile
     container_name: service-gateway
+    restart: unless-stopped
     depends_on:
       service-discovery:
         condition: service_started
@@ -75,33 +121,42 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-auto-kafka-topic:
     build:
       context: .
       dockerfile: ./ms-auto-kafka-topic/Dockerfile
     container_name: ms-auto-kafka-topic
+    restart: "no"
     depends_on:
       kafka:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "9000:9000"
     networks:
       - prospectaai-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-useraccount:
     build:
       context: .
       dockerfile: ./ms-useraccount/Dockerfile
     container_name: ms-useraccount
+    restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
@@ -121,16 +176,23 @@ services:
       JWT_REFRESH_EXPIRATION_MS: ${ENV_JWT_REFRESH_EXPIRATION}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
       BILLING_SERVICE_BASE_URL: http://ms-billing-sbs:8082
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "8081:8081"
     networks:
       - prospectaai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-billing-sbs:
     build:
       context: .
       dockerfile: ./ms-billing-sbs/Dockerfile
     container_name: ms-billing-sbs
+    restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
@@ -141,16 +203,23 @@ services:
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "8082:8082"
     networks:
       - prospectaai-network    
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-email:
     build:
       context: .
       dockerfile: ./ms-email/Dockerfile
     container_name: ms-email
+    restart: unless-stopped
     depends_on:
       service-discovery:
         condition: service_started
@@ -163,6 +232,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_MAIL_USERNAME: ${EMAIL_FROM}
       SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "8083:8083"
     networks:
@@ -172,12 +242,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-async-task:
     build:
       context: .
       dockerfile: ./ms-async-task/Dockerfile
     container_name: ms-async-task
+    restart: unless-stopped
     depends_on:
       service-discovery:
         condition: service_started
@@ -189,16 +265,26 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERPAPI_API_KEY: ${SERPAPI_API_KEY}
+      JWT_SECRET: ${ENV_JWT_SECRET}
+      JWT_EXPIRATION_MS: ${ENV_JWT_EXPIRATION_MS}
+      JWT_REFRESH_EXPIRATION_MS: ${ENV_JWT_REFRESH_EXPIRATION}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "8084:8084"
     networks:
       - prospectaai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-notification:
     build:
       context: .
       dockerfile: ./ms-notification/Dockerfile
     container_name: ms-notification
+    restart: unless-stopped
     depends_on:
       service-discovery:
         condition: service_started
@@ -209,10 +295,19 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${ENV_JWT_SECRET}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
     ports:
       - "8085:8085"
     networks:
       - prospectaai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 networks:
   prospectaai-network:
     driver: bridge
+volumes:
+  kafka-data:

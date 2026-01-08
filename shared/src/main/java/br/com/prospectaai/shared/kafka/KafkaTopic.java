@@ -9,7 +9,8 @@ public enum KafkaTopic {
     N8N_ASYNC_TASK_REQUEST("async.task.n8n.request"),
     N8N_ASYNC_TASK_RESPONSE("async.task.n8n.response"),
     N8N_ASYNC_TASK_ERROR("async.task.n8n.error"),
-    NOTIFICATION("notification");
+    NOTIFICATION("notification"),
+    NOTIFICATION_PROSPECTION("notification.prospection");
 
     private final String topic;
 

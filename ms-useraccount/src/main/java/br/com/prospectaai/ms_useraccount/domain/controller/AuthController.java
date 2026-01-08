@@ -74,7 +74,7 @@ public class AuthController {
             }
             
             String token = authorizationHeader.substring("Bearer ".length());
-            boolean valid = jwtTokenProvider.validateToken(token);
+            boolean valid = jwtTokenProvider.validateToken(token) && userRepository.existsByEmail(jwtTokenProvider.extractUsername(token));
             
             if (valid) {
                 String email = jwtTokenProvider.extractUsername(token);

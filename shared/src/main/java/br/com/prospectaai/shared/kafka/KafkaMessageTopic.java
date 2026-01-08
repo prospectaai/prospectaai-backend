@@ -13,5 +13,8 @@ public class KafkaMessageTopic<T> {
     private String applicationName;
     private String eventType;
     private Long timestamp;
+    private String userEmail;
+    private String title;
+    private String description;
     private T messageData;
 }

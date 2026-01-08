@@ -18,6 +18,9 @@ public class ProspectTask {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, length = 256)
+    private String userEmail;
+
     @Column(nullable = false, length = 512)
     private String query;
 

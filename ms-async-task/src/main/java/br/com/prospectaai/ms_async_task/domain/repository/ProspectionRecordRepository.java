@@ -15,4 +15,7 @@ public interface ProspectionRecordRepository extends JpaRepository<ProspectionRe
 
     @Query("select r.endereco from ProspectionRecord r where r.endereco is not null and r.endereco <> ''")
     List<String> findAllEnderecosNonNull();
+
+    long countByTask_Id(Long taskId);
+    List<ProspectionRecord> findByTask_Id(Long taskId);
 }

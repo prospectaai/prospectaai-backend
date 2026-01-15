@@ -9,8 +9,7 @@ public final class ProspectorFactory {
 
     public static Prospector create(AsyncTaskPlatform platform, Map<String, String> config) {
         if (platform == AsyncTaskPlatform.GOOGLE_MAPS) {
-            String apiKey = config != null ? config.getOrDefault("serpapi.apiKey", "") : "";
-            return new GoogleMapsProspector(apiKey);
+            return new GoogleMapsProspector(config != null ? config : java.util.Map.of());
         }
         throw new IllegalArgumentException("Unsupported platform: " + platform);
     }

@@ -28,6 +28,17 @@ public class ProspectTask {
     @Column(nullable = false, length = 64)
     private AsyncTaskPlatform platform;
 
+    @Column(length = 256)
+    private String location;
+
+    @Column(length = 256)
+    private String businessType;
+
+    private Integer radiusKm;
+
+    @Column(length = 64)
+    private String companySize;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private AsyncTaskStatus status;

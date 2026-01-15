@@ -7,5 +7,8 @@ import lombok.Data;
 public class ProspectRequest {
     private String query;
     private AsyncTaskPlatform platform;
+    private String location;
+    private String businessType;
+    private Integer radiusKm;
+    private String companySize;
 }
-

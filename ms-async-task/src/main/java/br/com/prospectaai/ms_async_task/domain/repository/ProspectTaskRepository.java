@@ -27,4 +27,12 @@ public interface ProspectTaskRepository extends JpaRepository<ProspectTask, Long
           and t.status = :status
         """)
     List<ProspectTask> findByUserEmailAndStatus(@Param(value = "userEmail") String userEmail, @Param(value = "status") AsyncTaskStatus status);
+
+    @Query("""
+        select t
+        from ProspectTask t
+        where t.userEmail = :userEmail
+          and t.status in (:statuses)
+        """)
+    List<ProspectTask> findByUserEmailAndStatuses(@Param(value = "userEmail") String userEmail, @Param(value = "statuses") List<AsyncTaskStatus> statuses);
 }

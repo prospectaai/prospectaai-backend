@@ -16,8 +16,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/v1/notification/**").permitAll()
+                .requestMatchers("/api/v1/notification/**").authenticated()
                 .anyRequest().permitAll()
         );
         http.addFilterBefore(xAuthUserFilter, UsernamePasswordAuthenticationFilter.class);

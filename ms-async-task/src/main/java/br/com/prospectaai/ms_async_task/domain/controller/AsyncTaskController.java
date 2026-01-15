@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import br.com.prospectaai.ms_async_task.domain.dto.ProspectRequest;
 import br.com.prospectaai.ms_async_task.domain.service.ProspectTaskService;
@@ -26,7 +28,15 @@ public class AsyncTaskController {
     @PostMapping("/prospect/call")
     public ResponseEntity<Void> dispatch(@RequestBody ProspectRequest request, @RequestHeader(value = "Authorization", required = true) String token) {
         String userEmail = jwtUtil.extractUserId(token);
-        prospectTaskService.call(request.getQuery(), request.getPlatform(), userEmail);
+        prospectTaskService.call(
+            request.getQuery(),
+            request.getPlatform(),
+            userEmail,
+            request.getLocation(),
+            request.getBusinessType(),
+            request.getRadiusKm(),
+            request.getCompanySize()
+        );
         return ResponseEntity.ok().build();
     }
 
@@ -35,5 +45,39 @@ public class AsyncTaskController {
         String userEmail = jwtUtil.extractUserId(token);
         List<AsyncTaskPanelDto> dto = prospectTaskService.getAllProcessing(userEmail);
         return ResponseEntity.ok().body(dto);
+    }
+
+    @GetMapping("/prospect/get-all-processed")
+    public ResponseEntity<List<AsyncTaskPanelDto>> getAllProcessed(@RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        List<AsyncTaskPanelDto> dto = prospectTaskService.getAllProcessed(userEmail);
+        return ResponseEntity.ok().body(dto);
+    }
+
+    @GetMapping("/prospect/get-all-results")
+    public ResponseEntity<List<br.com.prospectaai.ms_async_task.domain.dto.ProspectionSummaryDto>> getAllResults(@RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        var dto = prospectTaskService.getAllResultsSummary(userEmail);
+        return ResponseEntity.ok().body(dto);
+    }
+
+    @GetMapping("/prospect/result/{taskId}")
+    public ResponseEntity<br.com.prospectaai.ms_async_task.domain.dto.ProspectionDetailDto> getResultDetail(@PathVariable("taskId") Long taskId, @RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        var dto = prospectTaskService.getResultDetail(taskId, userEmail);
+        if (dto == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
+        }
+        return ResponseEntity.ok().body(dto);
+    }
+
+    @DeleteMapping("/prospect/result/{taskId}")
+    public ResponseEntity<Void> deleteProspection(@PathVariable("taskId") Long taskId, @RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        boolean ok = prospectTaskService.deleteProspection(taskId, userEmail);
+        if (!ok) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.noContent().build();
     }
 }

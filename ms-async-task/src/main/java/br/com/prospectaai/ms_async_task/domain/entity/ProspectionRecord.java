@@ -15,6 +15,12 @@ public class ProspectionRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private String userId;
+
+    @Column(nullable = false)
+    private String userEmail;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "task_id", nullable = false)
     private ProspectTask task;

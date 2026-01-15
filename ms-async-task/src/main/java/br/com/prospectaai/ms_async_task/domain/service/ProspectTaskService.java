@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectTask;
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord;
@@ -34,6 +35,9 @@ public class ProspectTaskService {
     private final ProspectionRecordRepository recordRepository;
     private final KafkaTemplate<String, KafkaMessageTopic<?>> kafkaTemplate;
     private final AnalyticsService analyticsService;
+    private final UserAccountClient userAccountClient;
+    @Value("${reachability.service.base-url:}")
+    private String reachabilityBaseUrl;
 
     public List<AsyncTaskPanelDto> getAllProcessing(String userEmail) {
         List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatus(userEmail, AsyncTaskStatus.PROCESSING);
@@ -47,7 +51,79 @@ public class ProspectTaskService {
             .collect(java.util.stream.Collectors.toList());
     }
 
-    public void call(String query, AsyncTaskPlatform platform, String userEmail) {
+    public List<AsyncTaskPanelDto> getAllProcessed(String userEmail) {
+        List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatus(userEmail, AsyncTaskStatus.PROCESSED);
+        return tasks.stream()
+            .<AsyncTaskPanelDto>map(task -> AsyncTaskPanelDto.builder()
+                .taskId(task.getId())
+                .query(task.getQuery())
+                .platform(task.getPlatform())
+                .status(br.com.prospectaai.shared.dto.async.AsyncTaskStatus.valueOf(task.getStatus().name()))
+                .build())
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    public List<br.com.prospectaai.ms_async_task.domain.dto.ProspectionSummaryDto> getAllResultsSummary(String userEmail) {
+        List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatuses(userEmail, java.util.List.of(AsyncTaskStatus.PROCESSING, AsyncTaskStatus.PROCESSED));
+        return tasks.stream()
+            .map(task -> br.com.prospectaai.ms_async_task.domain.dto.ProspectionSummaryDto.builder()
+                .taskId(task.getId())
+                .query(task.getQuery())
+                .platform(task.getPlatform())
+                .status(br.com.prospectaai.shared.dto.async.AsyncTaskStatus.valueOf(task.getStatus().name()))
+                .createdAt(task.getCreatedAt().toString())
+                .resultsCount(recordRepository.countByTask_Id(task.getId()))
+                .build())
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    public br.com.prospectaai.ms_async_task.domain.dto.ProspectionDetailDto getResultDetail(Long taskId, String userEmail) {
+        var opt = taskRepository.findById(taskId);
+        if (opt.isEmpty()) return null;
+        var task = opt.get();
+        if (!userEmail.equals(task.getUserEmail())) return null;
+        if (task.getStatus() != AsyncTaskStatus.PROCESSED) {
+            return null;
+        }
+        var records = recordRepository.findByTask_Id(taskId);
+        java.util.List<br.com.prospectaai.ms_async_task.domain.dto.ProspectionRecordDto> items = records.stream().map(r ->
+            br.com.prospectaai.ms_async_task.domain.dto.ProspectionRecordDto.builder()
+                .query(r.getQuery())
+                .platform(r.getPlatform())
+                .nomeEmpresa(r.getNomeEmpresa())
+                .telefone(r.getTelefone())
+                .endereco(r.getEndereco())
+                .website(r.getWebsite())
+                .rating(r.getRating())
+                .reviews(r.getReviews())
+                .especialidades(r.getEspecialidades())
+                .createdAt(r.getCreatedAt() != null ? r.getCreatedAt().toString() : null)
+                .build()
+        ).collect(java.util.stream.Collectors.toList());
+        return br.com.prospectaai.ms_async_task.domain.dto.ProspectionDetailDto.builder()
+            .taskId(task.getId())
+            .query(task.getQuery())
+            .platform(task.getPlatform())
+            .updatedAt(task.getUpdatedAt().toString())
+            .resultsCount(items.size())
+            .results(items)
+            .build();
+    }
+
+    public boolean deleteProspection(Long taskId, String userEmail) {
+        var opt = taskRepository.findById(taskId);
+        if (opt.isEmpty()) return false;
+        var task = opt.get();
+        if (!userEmail.equals(task.getUserEmail())) return false;
+        var recs = recordRepository.findByTask_Id(taskId);
+        if (recs != null && !recs.isEmpty()) {
+            recordRepository.deleteAll(recs);
+        }
+        taskRepository.delete(task);
+        return true;
+    }
+    
+    public void call(String query, AsyncTaskPlatform platform, String userEmail, String location, String businessType, Integer radiusKm, String companySize) {
         AsyncTaskMessage message = AsyncTaskMessage.builder()
             .type(AsyncTaskMessageType.PROCESSING)
             .platform(platform)
@@ -58,6 +134,10 @@ public class ProspectTaskService {
         task.setUserEmail(userEmail);
         task.setQuery(query);
         task.setPlatform(platform);
+        task.setLocation(location);
+        task.setBusinessType(businessType);
+        task.setRadiusKm(radiusKm);
+        task.setCompanySize(companySize);
         task.setStatus(AsyncTaskStatus.PROCESSING);
         task.setCreatedAt(Instant.now());
         task.setUpdatedAt(Instant.now());
@@ -71,12 +151,24 @@ public class ProspectTaskService {
 
     private void prospect(AsyncTaskMessage message, Long taskId, String userEmail) {
         try {
-            Prospector prospector = ProspectorFactory.create(message.getPlatform(),
-                    java.util.Map.of("serpapi.apiKey", serpApiKey));
-            var results = prospector.prospect(message.getQuery());
+            UUID userId = userAccountClient.resolveUserIdByEmail(userEmail);
             var taskOpt = taskRepository.findById(taskId);
             if (taskOpt.isEmpty()) return;
             var task = taskOpt.get();
+            java.util.Map<String, String> config = new java.util.HashMap<>();
+            config.put("serpapi.apiKey", serpApiKey);
+            if (task.getLocation() != null) config.put("location", task.getLocation());
+            if (task.getBusinessType() != null) config.put("businessType", task.getBusinessType());
+            if (task.getCompanySize() != null) config.put("companySize", task.getCompanySize());
+            if (task.getRadiusKm() != null) config.put("radiusKm", String.valueOf(task.getRadiusKm()));
+            config.put("hl", "pt-BR");
+            config.put("gl", "br");
+            config.put("randomize", "true");
+            if (reachabilityBaseUrl != null && !reachabilityBaseUrl.isBlank()) {
+                config.put("reachability.baseUrl", reachabilityBaseUrl.trim());
+            }
+            Prospector prospector = ProspectorFactory.create(message.getPlatform(), config);
+            var results = prospector.prospect(message.getQuery());
 
             List<ProspectionRecord> toSave = new ArrayList<>();
             if (results != null && !results.isEmpty()) {
@@ -93,6 +185,8 @@ public class ProspectTaskService {
                     rec.setReviews(r.getReviews() != null && !r.getReviews().isBlank() ? Integer.valueOf(r.getReviews()) : null);
                     rec.setEspecialidades(r.getEspecialidades());
                     rec.setCreatedAt(Instant.now());
+                    rec.setUserEmail(userEmail);
+                    rec.setUserId(userId.toString());
                     toSave.add(rec);
                 }
                 recordRepository.saveAll(toSave);

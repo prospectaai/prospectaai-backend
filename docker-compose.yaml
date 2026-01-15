@@ -269,6 +269,7 @@ services:
       JWT_EXPIRATION_MS: ${ENV_JWT_EXPIRATION_MS}
       JWT_REFRESH_EXPIRATION_MS: ${ENV_JWT_REFRESH_EXPIRATION}
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
+      USERACCOUNT_SERVICE_BASE_URL: http://ms-useraccount:8081
     ports:
       - "8084:8084"
     networks:

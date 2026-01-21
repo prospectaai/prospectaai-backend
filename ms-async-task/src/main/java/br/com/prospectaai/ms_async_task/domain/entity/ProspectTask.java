@@ -39,6 +39,42 @@ public class ProspectTask {
     @Column(length = 64)
     private String companySize;
 
+    @Column
+    private Boolean useAddress;
+
+    @Column(length = 256)
+    private String addressStreet;
+
+    @Column(length = 64)
+    private String addressNumber;
+
+    @Column(length = 128)
+    private String addressCity;
+
+    @Column(length = 128)
+    private String addressNeighborhood;
+
+    @Column(length = 64)
+    private String addressState;
+
+    @Column(length = 32)
+    private String addressZip;
+
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
+    @Column(length = 64)
+    private String stateId;
+
+    @Column(length = 16)
+    private String stateSigla;
+
+    @Column(length = 128)
+    private String cityName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private AsyncTaskStatus status;

@@ -11,4 +11,16 @@ public class ProspectRequest {
     private String businessType;
     private Integer radiusKm;
     private String companySize;
+    private Boolean useAddress;
+    private String addressStreet;
+    private String addressNumber;
+    private String addressCity;
+    private String addressNeighborhood;
+    private String addressState;
+    private String addressZip;
+    private Double latitude;
+    private Double longitude;
+    private String stateId;
+    private String stateSigla;
+    private String cityName;
 }

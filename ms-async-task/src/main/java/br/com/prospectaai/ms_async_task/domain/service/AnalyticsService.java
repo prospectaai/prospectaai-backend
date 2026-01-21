@@ -28,12 +28,16 @@ public class AnalyticsService {
         LocalDate now = LocalDate.now(ZoneOffset.UTC);
         Instant startOfMonth = now.withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant endOfMonth = now.with(TemporalAdjusters.lastDayOfMonth()).atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
-        long currentMonth = recordRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
+        java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> currentMonthRecords =
+                recordRepository.findByCreatedAtBetween(startOfMonth, endOfMonth);
+        long currentMonth = countUniqueCompanies(currentMonthRecords);
 
         LocalDate prev = now.minusMonths(1);
         Instant prevStart = prev.withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant prevEnd = prev.with(TemporalAdjusters.lastDayOfMonth()).atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
-        long previousMonth = recordRepository.countByCreatedAtBetween(prevStart, prevEnd);
+        java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> previousMonthRecords =
+                recordRepository.findByCreatedAtBetween(prevStart, prevEnd);
+        long previousMonth = countUniqueCompanies(previousMonthRecords);
 
         double variation = previousMonth == 0 ? (currentMonth > 0 ? 100.0 : 0.0)
                 : ((double) (currentMonth - previousMonth) / (double) previousMonth) * 100.0;
@@ -42,7 +46,11 @@ public class AnalyticsService {
         long agendadas = taskRepository.countProcessingWithoutRecords();
 
         long distinctLocations = recordRepository.countDistinctEnderecos();
-        long cities = countDistinctCities(recordRepository.findAllEnderecosNonNull());
+        java.util.List<String> currentMonthAddresses = currentMonthRecords.stream()
+                .map(br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord::getEndereco)
+                .filter(e -> e != null && !e.isBlank())
+                .toList();
+        long cities = countDistinctCities(currentMonthAddresses);
 
         return new AnalyticsOverview(
             totalProspectadas,
@@ -52,6 +60,25 @@ public class AnalyticsService {
             distinctLocations,
             cities
         );
+    }
+
+    private long countUniqueCompanies(java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> records) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        if (records == null || records.isEmpty()) return 0L;
+        for (var r : records) {
+            String phone = safeLower(r.getTelefone());
+            String nome = safeLower(r.getNomeEmpresa());
+            String endereco = safeLower(r.getEndereco());
+            String key = (phone != null && !phone.isBlank())
+                    ? phone
+                    : ((nome != null ? nome : "") + "|" + (endereco != null ? endereco : ""));
+            keys.add(key);
+        }
+        return keys.size();
+    }
+
+    private String safeLower(String s) {
+        return s == null ? null : s.toLowerCase().trim();
     }
 
     private long countDistinctCities(List<String> enderecos) {

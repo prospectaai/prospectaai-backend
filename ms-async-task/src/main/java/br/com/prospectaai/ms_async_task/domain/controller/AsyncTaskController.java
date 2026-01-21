@@ -28,15 +28,7 @@ public class AsyncTaskController {
     @PostMapping("/prospect/call")
     public ResponseEntity<Void> dispatch(@RequestBody ProspectRequest request, @RequestHeader(value = "Authorization", required = true) String token) {
         String userEmail = jwtUtil.extractUserId(token);
-        prospectTaskService.call(
-            request.getQuery(),
-            request.getPlatform(),
-            userEmail,
-            request.getLocation(),
-            request.getBusinessType(),
-            request.getRadiusKm(),
-            request.getCompanySize()
-        );
+        prospectTaskService.call(request, userEmail);
         return ResponseEntity.ok().build();
     }
 
@@ -78,6 +70,13 @@ public class AsyncTaskController {
         if (!ok) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
         }
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/prospect/result/all")
+    public ResponseEntity<Void> deleteAllProspection(@RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        prospectTaskService.deleteAllProspection(userEmail);
         return ResponseEntity.noContent().build();
     }
 }

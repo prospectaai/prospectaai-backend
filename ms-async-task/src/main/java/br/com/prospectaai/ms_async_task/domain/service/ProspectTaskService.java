@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import br.com.prospectaai.ms_async_task.domain.dto.ProspectRequest;
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectTask;
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord;
 import br.com.prospectaai.ms_async_task.domain.enums.AsyncTaskStatus;
@@ -20,7 +21,6 @@ import br.com.prospectaai.sdk.prospection.ProspectorFactory;
 import br.com.prospectaai.shared.dto.async.AsyncTaskMessage;
 import br.com.prospectaai.shared.dto.async.AsyncTaskMessageType;
 import br.com.prospectaai.shared.dto.async.AsyncTaskPanelDto;
-import br.com.prospectaai.shared.dto.async.AsyncTaskPlatform;
 import br.com.prospectaai.shared.dto.analytics.AnalyticsOverview;
 import br.com.prospectaai.shared.dto.notification.AsyncTaskNotification;
 import br.com.prospectaai.shared.dto.notification.NotificationType;
@@ -36,8 +36,10 @@ public class ProspectTaskService {
     private final KafkaTemplate<String, KafkaMessageTopic<?>> kafkaTemplate;
     private final AnalyticsService analyticsService;
     private final UserAccountClient userAccountClient;
-    @Value("${reachability.service.base-url:}")
-    private String reachabilityBaseUrl;
+    @Value("${google.places.api-key:}")
+    private String googlePlacesApiKey;
+    @Value("${serper.api-key:}")
+    private String serperApiKey;
 
     public List<AsyncTaskPanelDto> getAllProcessing(String userEmail) {
         List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatus(userEmail, AsyncTaskStatus.PROCESSING);
@@ -122,22 +124,47 @@ public class ProspectTaskService {
         taskRepository.delete(task);
         return true;
     }
+
+    public void deleteAllProspection(String userEmail) {
+        List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatuses(userEmail, java.util.List.of(AsyncTaskStatus.PROCESSING, AsyncTaskStatus.PROCESSED));
+        if (tasks.isEmpty()) return;
+        
+        for (ProspectTask task : tasks) {
+            var recs = recordRepository.findByTask_Id(task.getId());
+            if (recs != null && !recs.isEmpty()) {
+                recordRepository.deleteAll(recs);
+            }
+            taskRepository.delete(task);
+        }
+    }
     
-    public void call(String query, AsyncTaskPlatform platform, String userEmail, String location, String businessType, Integer radiusKm, String companySize) {
+    public void call(ProspectRequest request, String userEmail) {
         AsyncTaskMessage message = AsyncTaskMessage.builder()
             .type(AsyncTaskMessageType.PROCESSING)
-            .platform(platform)
-            .query(query)
+            .platform(request.getPlatform())
+            .query(request.getQuery())
             .build();
 
         ProspectTask task = new ProspectTask();
         task.setUserEmail(userEmail);
-        task.setQuery(query);
-        task.setPlatform(platform);
-        task.setLocation(location);
-        task.setBusinessType(businessType);
-        task.setRadiusKm(radiusKm);
-        task.setCompanySize(companySize);
+        task.setQuery(request.getQuery());
+        task.setPlatform(request.getPlatform());
+        task.setLocation(request.getLocation());
+        task.setBusinessType(request.getBusinessType());
+        task.setRadiusKm(request.getRadiusKm());
+        task.setCompanySize(request.getCompanySize());
+        task.setUseAddress(request.getUseAddress());
+        task.setAddressStreet(request.getAddressStreet());
+        task.setAddressNumber(request.getAddressNumber());
+        task.setAddressCity(request.getAddressCity());
+        task.setAddressNeighborhood(request.getAddressNeighborhood());
+        task.setAddressState(request.getAddressState());
+        task.setAddressZip(request.getAddressZip());
+        task.setLatitude(request.getLatitude());
+        task.setLongitude(request.getLongitude());
+        task.setStateId(request.getStateId());
+        task.setStateSigla(request.getStateSigla());
+        task.setCityName(request.getCityName());
         task.setStatus(AsyncTaskStatus.PROCESSING);
         task.setCreatedAt(Instant.now());
         task.setUpdatedAt(Instant.now());
@@ -156,40 +183,79 @@ public class ProspectTaskService {
             if (taskOpt.isEmpty()) return;
             var task = taskOpt.get();
             java.util.Map<String, String> config = new java.util.HashMap<>();
-            config.put("serpapi.apiKey", serpApiKey);
-            if (task.getLocation() != null) config.put("location", task.getLocation());
+            config.put("serpapi.apiKey", serpApiKey != null ? serpApiKey.trim() : "");
+            config.put("serper.apiKey", serperApiKey != null ? serperApiKey.trim() : "");
+            String computedLoc = computeLocation(task);
+            if (computedLoc != null && !computedLoc.isBlank()) {
+                config.put("location", computedLoc);
+            } else if (task.getLocation() != null) {
+                config.put("location", task.getLocation());
+            }
             if (task.getBusinessType() != null) config.put("businessType", task.getBusinessType());
-            if (task.getCompanySize() != null) config.put("companySize", task.getCompanySize());
             if (task.getRadiusKm() != null) config.put("radiusKm", String.valueOf(task.getRadiusKm()));
+            if (task.getLatitude() != null && task.getLongitude() != null) {
+                config.put("lat", String.valueOf(task.getLatitude()));
+                config.put("lon", String.valueOf(task.getLongitude()));
+            }
             config.put("hl", "pt-BR");
             config.put("gl", "br");
             config.put("randomize", "true");
-            if (reachabilityBaseUrl != null && !reachabilityBaseUrl.isBlank()) {
-                config.put("reachability.baseUrl", reachabilityBaseUrl.trim());
+            if (googlePlacesApiKey != null && !googlePlacesApiKey.isBlank()) {
+                config.put("google.places.apiKey", googlePlacesApiKey.trim());
             }
             Prospector prospector = ProspectorFactory.create(message.getPlatform(), config);
             var results = prospector.prospect(message.getQuery());
 
+            System.out.println("[ProspectTaskService] Received " + (results != null ? results.size() : 0) + " results from SDK for task " + taskId);
+
             List<ProspectionRecord> toSave = new ArrayList<>();
             if (results != null && !results.isEmpty()) {
                 for (var r : results) {
-                    ProspectionRecord rec = new ProspectionRecord();
-                    rec.setTask(task);
-                    rec.setQuery(r.getQuery());
-                    rec.setPlatform(r.getPlatform() != null ? r.getPlatform().name() : null);
-                    rec.setNomeEmpresa(r.getNomeEmpresa());
-                    rec.setTelefone(r.getTelefone());
-                    rec.setEndereco(r.getEndereco());
-                    rec.setWebsite(r.getWebsite());
-                    rec.setRating(r.getRating() != null && !r.getRating().isBlank() ? Double.valueOf(r.getRating()) : null);
-                    rec.setReviews(r.getReviews() != null && !r.getReviews().isBlank() ? Integer.valueOf(r.getReviews()) : null);
-                    rec.setEspecialidades(r.getEspecialidades());
-                    rec.setCreatedAt(Instant.now());
-                    rec.setUserEmail(userEmail);
-                    rec.setUserId(userId.toString());
-                    toSave.add(rec);
+                    try {
+                        ProspectionRecord rec = new ProspectionRecord();
+                        rec.setTask(task);
+                        rec.setQuery(truncate(r.getQuery(), 512));
+                        rec.setPlatform(r.getPlatform() != null ? truncate(r.getPlatform().name(), 64) : null);
+                        rec.setNomeEmpresa(truncate(r.getNomeEmpresa(), 256));
+                        rec.setTelefone(truncate(r.getTelefone(), 64));
+                        rec.setEndereco(truncate(r.getEndereco(), 512));
+                        rec.setWebsite(truncate(r.getWebsite(), 256));
+                        
+                        if (r.getRating() != null && !r.getRating().isBlank()) {
+                            try {
+                                rec.setRating(Double.valueOf(r.getRating().replace(",", ".")));
+                            } catch (NumberFormatException nfe) {
+                                rec.setRating(null);
+                            }
+                        }
+                        
+                        if (r.getReviews() != null && !r.getReviews().isBlank()) {
+                            try {
+                                rec.setReviews(Integer.valueOf(r.getReviews().replaceAll("[^0-9]", "")));
+                            } catch (NumberFormatException nfe) {
+                                rec.setReviews(null);
+                            }
+                        }
+
+                        rec.setEspecialidades(truncate(r.getEspecialidades(), 1024));
+                        rec.setCreatedAt(Instant.now());
+                        rec.setUserEmail(userEmail);
+                        rec.setUserId(userId.toString());
+                        toSave.add(rec);
+                    } catch (Exception ex) {
+                        System.err.println("[ProspectTaskService] Error mapping record: " + ex.getMessage());
+                    }
                 }
-                recordRepository.saveAll(toSave);
+                
+                if (!toSave.isEmpty()) {
+                    System.out.println("[ProspectTaskService] Saving " + toSave.size() + " records to database for task " + taskId);
+                    recordRepository.saveAll(toSave);
+                    System.out.println("[ProspectTaskService] Successfully saved records for task " + taskId);
+                } else {
+                    System.out.println("[ProspectTaskService] No records to save for task " + taskId);
+                }
+            } else {
+                System.out.println("[ProspectTaskService] Results list is empty or null for task " + taskId);
             }
 
             task.setStatus(AsyncTaskStatus.PROCESSED);
@@ -202,6 +268,38 @@ public class ProspectTaskService {
             System.err.println("[prospection-sdk] error -> " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null) return null;
+        if (value.length() <= maxLength) return value;
+        return value.substring(0, maxLength);
+    }
+    
+    private String computeLocation(ProspectTask task) {
+        if (task.getUseAddress() == null || !task.getUseAddress()) return null;
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (task.getAddressStreet() != null && !task.getAddressStreet().isBlank()) {
+            if (task.getAddressNumber() != null && !task.getAddressNumber().isBlank()) {
+                parts.add(task.getAddressStreet().trim() + " " + task.getAddressNumber().trim());
+            } else {
+                parts.add(task.getAddressStreet().trim());
+            }
+        }
+        if (task.getAddressNeighborhood() != null && !task.getAddressNeighborhood().isBlank()) {
+            parts.add(task.getAddressNeighborhood().trim());
+        }
+        if (task.getAddressCity() != null && !task.getAddressCity().isBlank()) {
+            parts.add(task.getAddressCity().trim());
+        }
+        if (task.getAddressState() != null && !task.getAddressState().isBlank()) {
+            parts.add(task.getAddressState().trim());
+        }
+        if (task.getAddressZip() != null && !task.getAddressZip().isBlank()) {
+            parts.add(task.getAddressZip().trim());
+        }
+        if (parts.isEmpty()) return null;
+        return String.join(", ", parts);
     }
 
     @Value("${serpapi.api-key}")

@@ -12,9 +12,9 @@ public class ProspectionRecordDto {
     private String telefone;
     private String endereco;
     private String website;
+    private String imageUrl;
     private Double rating;
     private Integer reviews;
     private String especialidades;
     private String createdAt;
 }
-

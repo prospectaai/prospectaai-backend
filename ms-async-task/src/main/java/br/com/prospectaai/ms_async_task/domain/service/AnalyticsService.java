@@ -4,9 +4,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -30,14 +27,14 @@ public class AnalyticsService {
         Instant endOfMonth = now.with(TemporalAdjusters.lastDayOfMonth()).atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
         java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> currentMonthRecords =
                 recordRepository.findByCreatedAtBetween(startOfMonth, endOfMonth);
-        long currentMonth = countUniqueCompanies(currentMonthRecords);
+        long currentMonth = countDistinctCitiesFromQueries(currentMonthRecords);
 
         LocalDate prev = now.minusMonths(1);
         Instant prevStart = prev.withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant prevEnd = prev.with(TemporalAdjusters.lastDayOfMonth()).atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
         java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> previousMonthRecords =
                 recordRepository.findByCreatedAtBetween(prevStart, prevEnd);
-        long previousMonth = countUniqueCompanies(previousMonthRecords);
+        long previousMonth = countDistinctCitiesFromQueries(previousMonthRecords);
 
         double variation = previousMonth == 0 ? (currentMonth > 0 ? 100.0 : 0.0)
                 : ((double) (currentMonth - previousMonth) / (double) previousMonth) * 100.0;
@@ -45,46 +42,29 @@ public class AnalyticsService {
         long buscasAtivas = taskRepository.countByStatus(AsyncTaskStatus.PROCESSING);
         long agendadas = taskRepository.countProcessingWithoutRecords();
 
-        long distinctLocations = recordRepository.countDistinctEnderecos();
-        java.util.List<String> currentMonthAddresses = currentMonthRecords.stream()
-                .map(br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord::getEndereco)
-                .filter(e -> e != null && !e.isBlank())
-                .toList();
-        long cities = countDistinctCities(currentMonthAddresses);
+        String topPlatform = mostUsedPlatform(currentMonthRecords);
+        long cities = currentMonth;
 
         return new AnalyticsOverview(
             totalProspectadas,
             roundOneDecimal(variation),
             buscasAtivas,
             agendadas,
-            distinctLocations,
+            topPlatform,
             cities
         );
     }
 
-    private long countUniqueCompanies(java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> records) {
-        java.util.Set<String> keys = new java.util.HashSet<>();
+    private double roundOneDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
+    private long countDistinctCitiesFromQueries(java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> records) {
         if (records == null || records.isEmpty()) return 0L;
+        java.util.Set<String> cities = new java.util.HashSet<>();
         for (var r : records) {
-            String phone = safeLower(r.getTelefone());
-            String nome = safeLower(r.getNomeEmpresa());
-            String endereco = safeLower(r.getEndereco());
-            String key = (phone != null && !phone.isBlank())
-                    ? phone
-                    : ((nome != null ? nome : "") + "|" + (endereco != null ? endereco : ""));
-            keys.add(key);
-        }
-        return keys.size();
-    }
-
-    private String safeLower(String s) {
-        return s == null ? null : s.toLowerCase().trim();
-    }
-
-    private long countDistinctCities(List<String> enderecos) {
-        Set<String> cities = new HashSet<>();
-        for (String e : enderecos) {
-            String city = extractCity(e);
+            String q = r.getQuery();
+            String city = extractCityFromQuery(q);
             if (city != null && !city.isBlank()) {
                 cities.add(city.toLowerCase().trim());
             }
@@ -92,30 +72,50 @@ public class AnalyticsService {
         return cities.size();
     }
 
-    private String extractCity(String endereco) {
-        if (endereco == null) return null;
-        String s = endereco.trim();
-        int idxDash = s.lastIndexOf(" - ");
-        if (idxDash > 0) {
-            String left = s.substring(0, idxDash);
-            int prevDash = left.lastIndexOf(" - ");
-            if (prevDash >= 0) {
-                return left.substring(prevDash + 3).trim();
+    private String extractCityFromQuery(String query) {
+        if (query == null) return null;
+        String s = query.trim();
+        String lower = s.toLowerCase();
+        int idx = lower.lastIndexOf(" em ");
+        String tail = idx >= 0 ? s.substring(idx + 4).trim() : s;
+        tail = tail.replaceAll("(?i)até\\s*\\d+\\s*km", "").trim();
+        String[] parts = tail.split(",");
+        if (parts.length >= 2) {
+            for (int i = parts.length - 1; i >= 0; i--) {
+                String part = parts[i].trim();
+                if (part.matches("[A-Z]{2}")) {
+                    for (int j = i - 1; j >= 0; j--) {
+                        String prev = parts[j].trim();
+                        if (!prev.isBlank()) return prev;
+                    }
+                }
             }
-            int lastComma = left.lastIndexOf(',');
-            if (lastComma >= 0) {
-                return left.substring(lastComma + 1).trim();
-            }
-            return left.trim();
+            return parts[parts.length - 1].trim();
         }
-        int lastComma = s.lastIndexOf(',');
-        if (lastComma >= 0) {
-            return s.substring(lastComma + 1).trim();
+        String[] dashSplit = tail.split("\\s-\\s");
+        if (dashSplit.length >= 2) {
+            return dashSplit[dashSplit.length - 1].trim();
         }
-        return null;
+        return tail;
     }
 
-    private double roundOneDecimal(double value) {
-        return Math.round(value * 10.0) / 10.0;
+    private String mostUsedPlatform(java.util.List<br.com.prospectaai.ms_async_task.domain.entity.ProspectionRecord> records) {
+        if (records == null || records.isEmpty()) return null;
+        java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+        for (var r : records) {
+            String p = r.getPlatform();
+            if (p == null || p.isBlank()) continue;
+            String key = p.trim();
+            counts.put(key, counts.getOrDefault(key, 0) + 1);
+        }
+        String best = null;
+        int max = 0;
+        for (var e : counts.entrySet()) {
+            if (e.getValue() > max) {
+                max = e.getValue();
+                best = e.getKey();
+            }
+        }
+        return best;
     }
 }

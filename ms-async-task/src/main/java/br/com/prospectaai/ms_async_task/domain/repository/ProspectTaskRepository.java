@@ -2,6 +2,7 @@ package br.com.prospectaai.ms_async_task.domain.repository;
 
 import br.com.prospectaai.ms_async_task.domain.entity.ProspectTask;
 import br.com.prospectaai.ms_async_task.domain.enums.AsyncTaskStatus;
+import br.com.prospectaai.shared.dto.async.AsyncTaskPlatform;
 
 import java.util.List;
 
@@ -35,4 +36,6 @@ public interface ProspectTaskRepository extends JpaRepository<ProspectTask, Long
           and t.status in (:statuses)
         """)
     List<ProspectTask> findByUserEmailAndStatuses(@Param(value = "userEmail") String userEmail, @Param(value = "statuses") List<AsyncTaskStatus> statuses);
+
+    long countByUserEmailAndQueryAndPlatformAndStatus(String userEmail, String query, AsyncTaskPlatform platform, AsyncTaskStatus status);
 }

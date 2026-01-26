@@ -43,6 +43,9 @@ public class ProspectionRecord {
     @Column(length = 256)
     private String website;
 
+    @Column(length = 512)
+    private String imageUrl;
+
     private Double rating;
 
     private Integer reviews;

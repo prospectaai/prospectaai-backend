@@ -12,6 +12,6 @@ public class AnalyticsOverview {
     private double empresasProspectadasVariationPercentMonth;
     private long buscasAtivasTotal;
     private long buscasAgendadas;
-    private long localizacoesTotal;
+    private String plataformaMaisUsada;
     private long cidadesTotal;
 }

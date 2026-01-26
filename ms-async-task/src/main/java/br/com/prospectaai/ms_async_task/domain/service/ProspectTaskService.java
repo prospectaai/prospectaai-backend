@@ -96,6 +96,7 @@ public class ProspectTaskService {
                 .telefone(r.getTelefone())
                 .endereco(r.getEndereco())
                 .website(r.getWebsite())
+                .imageUrl(r.getImageUrl())
                 .rating(r.getRating())
                 .reviews(r.getReviews())
                 .especialidades(r.getEspecialidades())
@@ -139,6 +140,15 @@ public class ProspectTaskService {
     }
     
     public void call(ProspectRequest request, String userEmail) {
+        long existing = taskRepository.countByUserEmailAndQueryAndPlatformAndStatus(
+            userEmail,
+            request.getQuery(),
+            request.getPlatform(),
+            AsyncTaskStatus.PROCESSING
+        );
+        if (existing > 0) {
+            return;
+        }
         AsyncTaskMessage message = AsyncTaskMessage.builder()
             .type(AsyncTaskMessageType.PROCESSING)
             .platform(request.getPlatform())
@@ -220,6 +230,7 @@ public class ProspectTaskService {
                         rec.setTelefone(truncate(r.getTelefone(), 64));
                         rec.setEndereco(truncate(r.getEndereco(), 512));
                         rec.setWebsite(truncate(r.getWebsite(), 256));
+                        rec.setImageUrl(truncate(r.getImageUrl(), 512));
                         
                         if (r.getRating() != null && !r.getRating().isBlank()) {
                             try {
@@ -261,8 +272,6 @@ public class ProspectTaskService {
             task.setStatus(AsyncTaskStatus.PROCESSED);
             task.setUpdatedAt(Instant.now());
             taskRepository.save(task);
-
-            Thread.sleep(15000);
             sendProcessedEvent(task, userEmail);
         } catch (Exception e) {
             System.err.println("[prospection-sdk] error -> " + e.getMessage());

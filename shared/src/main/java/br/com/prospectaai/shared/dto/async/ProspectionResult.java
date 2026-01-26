@@ -21,5 +21,5 @@ public class ProspectionResult {
     private String rating;
     private String reviews;
     private String especialidades;
+    private String imageUrl;
 }
-

@@ -18,4 +18,6 @@ public interface ProspectionRecordRepository extends JpaRepository<ProspectionRe
 
     long countByTask_Id(Long taskId);
     List<ProspectionRecord> findByTask_Id(Long taskId);
+
+    List<ProspectionRecord> findByCreatedAtBetween(Instant start, Instant end);
 }

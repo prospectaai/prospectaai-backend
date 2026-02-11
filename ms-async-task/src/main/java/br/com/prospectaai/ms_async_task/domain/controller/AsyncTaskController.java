@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
 import br.com.prospectaai.ms_async_task.domain.dto.ProspectRequest;
+import br.com.prospectaai.ms_async_task.domain.dto.ProspectionDetailDto;
+import br.com.prospectaai.ms_async_task.domain.dto.ProspectionSummaryDto;
+import br.com.prospectaai.ms_async_task.domain.dto.ProspectionUsageDto;
 import br.com.prospectaai.ms_async_task.domain.service.ProspectTaskService;
 import br.com.prospectaai.ms_async_task.domain.util.JwtUtil;
 import br.com.prospectaai.shared.dto.async.AsyncTaskPanelDto;
@@ -25,6 +28,13 @@ public class AsyncTaskController {
     private final ProspectTaskService prospectTaskService;
     private final JwtUtil jwtUtil;
     
+    @GetMapping("/prospect/usage")
+    public ResponseEntity<ProspectionUsageDto> getUsage(@RequestHeader(value = "Authorization", required = true) String token) {
+        String userEmail = jwtUtil.extractUserId(token);
+        var dto = prospectTaskService.getUsage(userEmail);
+        return ResponseEntity.ok().body(dto);
+    }
+
     @PostMapping("/prospect/call")
     public ResponseEntity<Void> dispatch(@RequestBody ProspectRequest request, @RequestHeader(value = "Authorization", required = true) String token) {
         String userEmail = jwtUtil.extractUserId(token);
@@ -47,14 +57,14 @@ public class AsyncTaskController {
     }
 
     @GetMapping("/prospect/get-all-results")
-    public ResponseEntity<List<br.com.prospectaai.ms_async_task.domain.dto.ProspectionSummaryDto>> getAllResults(@RequestHeader(value = "Authorization", required = true) String token) {
+    public ResponseEntity<List<ProspectionSummaryDto>> getAllResults(@RequestHeader(value = "Authorization", required = true) String token) {
         String userEmail = jwtUtil.extractUserId(token);
         var dto = prospectTaskService.getAllResultsSummary(userEmail);
         return ResponseEntity.ok().body(dto);
     }
 
     @GetMapping("/prospect/result/{taskId}")
-    public ResponseEntity<br.com.prospectaai.ms_async_task.domain.dto.ProspectionDetailDto> getResultDetail(@PathVariable("taskId") Long taskId, @RequestHeader(value = "Authorization", required = true) String token) {
+    public ResponseEntity<ProspectionDetailDto> getResultDetail(@PathVariable("taskId") Long taskId, @RequestHeader(value = "Authorization", required = true) String token) {
         String userEmail = jwtUtil.extractUserId(token);
         var dto = prospectTaskService.getResultDetail(taskId, userEmail);
         if (dto == null) {

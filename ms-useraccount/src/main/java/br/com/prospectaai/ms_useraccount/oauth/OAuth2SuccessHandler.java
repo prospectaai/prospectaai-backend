@@ -86,6 +86,22 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         // Gera JWT
         String jwt = isNeedPreRegister ? res.getPreRegisterId().toString() : jwtTokenProvider.generateToken(user);
         
+        // Verifica contexto do OAuth via Cookie (ex: fluxo iniciado pelo checkout)
+        String oauthContext = getCookieValue(request, "prospecta_oauth_context");
+        
+        // Se for fluxo de reserva no checkout E for um novo pré-registro, retorna JSON direto
+        if ("checkout_reservation".equals(oauthContext) && isNeedPreRegister) {
+            response.setContentType("application/json");
+            response.setStatus(HttpServletResponse.SC_OK);
+            // Retorna o ID de pré-registro em formato JSON
+            response.getWriter().write("{\"preRegisterId\": \"" + jwt + "\"}");
+            response.getWriter().flush();
+            
+            // Limpa o cookie de contexto
+            clearCookie(response, "prospecta_oauth_context");
+            return;
+        }
+
         // Redireciona para checkout se for pré-cadastro ou para página de sucesso se já tiver conta
         if (isNeedPreRegister) {
             // Redireciona para checkout do frontend com o preRegisterId
@@ -95,5 +111,23 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             // Usuário já tem conta, redireciona para dashboard do frontend com token JWT
             response.sendRedirect(frontendBaseUrl + "/auth/callback?token=" + jwt + "&expiredAt=" + expiredAt);
         }
+    }
+
+    private String getCookieValue(HttpServletRequest request, String name) {
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if (name.equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    private void clearCookie(HttpServletResponse response, String name) {
+        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie(name, null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
     }
 }

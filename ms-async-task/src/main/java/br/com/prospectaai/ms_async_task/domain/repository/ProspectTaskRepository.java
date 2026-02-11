@@ -37,5 +37,7 @@ public interface ProspectTaskRepository extends JpaRepository<ProspectTask, Long
         """)
     List<ProspectTask> findByUserEmailAndStatuses(@Param(value = "userEmail") String userEmail, @Param(value = "statuses") List<AsyncTaskStatus> statuses);
 
+    long countByUserEmail(String userEmail);
+
     long countByUserEmailAndQueryAndPlatformAndStatus(String userEmail, String query, AsyncTaskPlatform platform, AsyncTaskStatus status);
 }

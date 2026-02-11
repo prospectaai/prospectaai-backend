@@ -40,6 +40,16 @@ public class ProspectTaskService {
     private String googlePlacesApiKey;
     @Value("${serper.api-key:}")
     private String serperApiKey;
+    
+    private static final long MAX_PROSPECTIONS = 10;
+
+    public br.com.prospectaai.ms_async_task.domain.dto.ProspectionUsageDto getUsage(String userEmail) {
+        long used = taskRepository.countByUserEmail(userEmail);
+        return br.com.prospectaai.ms_async_task.domain.dto.ProspectionUsageDto.builder()
+            .used(used)
+            .limit(MAX_PROSPECTIONS)
+            .build();
+    }
 
     public List<AsyncTaskPanelDto> getAllProcessing(String userEmail) {
         List<ProspectTask> tasks = taskRepository.findByUserEmailAndStatus(userEmail, AsyncTaskStatus.PROCESSING);
@@ -140,6 +150,14 @@ public class ProspectTaskService {
     }
     
     public void call(ProspectRequest request, String userEmail) {
+        long currentUsage = taskRepository.countByUserEmail(userEmail);
+        if (currentUsage >= MAX_PROSPECTIONS) {
+             throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST, 
+                "Limite de prospecções atingido. Seu plano permite apenas " + MAX_PROSPECTIONS + " prospecções."
+            );
+        }
+
         long existing = taskRepository.countByUserEmailAndQueryAndPlatformAndStatus(
             userEmail,
             request.getQuery(),

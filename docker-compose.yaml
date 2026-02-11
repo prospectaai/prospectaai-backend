@@ -122,6 +122,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxRAMPercentage=70"
+      FRONTEND_URL: ${FRONTEND_URL}
     logging:
       driver: json-file
       options:

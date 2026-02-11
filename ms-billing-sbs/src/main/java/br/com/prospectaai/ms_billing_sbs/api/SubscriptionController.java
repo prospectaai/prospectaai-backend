@@ -80,4 +80,77 @@ public class SubscriptionController {
         System.out.println("[Billing][SubscriptionController.status] active=" + active + ", plan=" + planType + ", nextBilling=" + s.getNextBillingDate());
         return ResponseEntity.ok(new SubscriptionStatusResponse(active, planType, s.getNextBillingDate().toString()));
     }
+    
+    @PostMapping("/cancel")
+    public ResponseEntity<BooleanResponse> cancel(@RequestParam("userId") UUID userId) {
+        System.out.println("[Billing][SubscriptionController.cancel] start userId=" + userId);
+        Optional<UserSubscriptionEntity> sub = userSubscriptionRepository.findTopByUserAccountAndActiveTrueOrderByNextBillingDateDesc(userId);
+        if (sub.isEmpty()) {
+            System.out.println("[Billing][SubscriptionController.cancel] no active subscription");
+            return ResponseEntity.ok(BooleanResponse.builder().value(false).build());
+        }
+        UserSubscriptionEntity s = sub.get();
+        s.setActive(false);
+        userSubscriptionRepository.save(s);
+        System.out.println("[Billing][SubscriptionController.cancel] canceled");
+        return ResponseEntity.ok(BooleanResponse.builder().value(true).build());
+    }
+    
+    @PostMapping("/renew")
+    public ResponseEntity<SubscriptionStatusResponse> renew(@RequestParam("userId") UUID userId) {
+        System.out.println("[Billing][SubscriptionController.renew] start userId=" + userId);
+        Optional<UserSubscriptionEntity> sub = userSubscriptionRepository.findTopByUserAccountAndActiveTrueOrderByNextBillingDateDesc(userId);
+        if (sub.isEmpty()) {
+            System.out.println("[Billing][SubscriptionController.renew] no active subscription");
+            return ResponseEntity.ok(new SubscriptionStatusResponse(false, null, null));
+        }
+        UserSubscriptionEntity s = sub.get();
+        PlanType planType = PlanType.fromString(s.getPlan().getName());
+        LocalDateTime base = s.getNextBillingDate().isAfter(LocalDateTime.now()) ? s.getNextBillingDate() : LocalDateTime.now();
+        LocalDateTime next = planType == PlanType.MONTHLY ? base.plusMonths(1) : base.plusYears(1);
+        s.setNextBillingDate(next);
+        s.setActive(true);
+        userSubscriptionRepository.save(s);
+        System.out.println("[Billing][SubscriptionController.renew] renewed, nextBilling=" + next);
+        return ResponseEntity.ok(new SubscriptionStatusResponse(true, planType, next.toString()));
+    }
+    
+    @PostMapping("/update")
+    public ResponseEntity<SubscriptionStatusResponse> update(@RequestParam("userId") UUID userId,
+                                                             @RequestParam("plan") PlanType planType) {
+        System.out.println("[Billing][SubscriptionController.update] start userId=" + userId + ", plan=" + planType);
+        String planName = planType.name();
+        SubscriptionPlanEntity plan = subscriptionPlanRepository
+                .findAll().stream().filter(p -> planName.equalsIgnoreCase(p.getName())).findFirst()
+                .orElseGet(() -> {
+                    SubscriptionPlanEntity p = new SubscriptionPlanEntity();
+                    p.setName(planName);
+                    p.setMonthlyPrice(planType == PlanType.MONTHLY ? 49.90 : 41.58);
+                    p.setFeaturesJson("{\"basic\":true}");
+                    return subscriptionPlanRepository.save(p);
+                });
+        Optional<UserSubscriptionEntity> sub = userSubscriptionRepository.findTopByUserAccountAndActiveTrueOrderByNextBillingDateDesc(userId);
+        LocalDateTime start = LocalDateTime.now();
+        LocalDateTime nextBilling = planType == PlanType.MONTHLY ? start.plusMonths(1) : start.plusYears(1);
+        if (sub.isPresent()) {
+            UserSubscriptionEntity s = sub.get();
+            s.setPlan(plan);
+            s.setStartDate(start);
+            s.setNextBillingDate(nextBilling);
+            s.setActive(true);
+            userSubscriptionRepository.save(s);
+            System.out.println("[Billing][SubscriptionController.update] updated, nextBilling=" + nextBilling);
+            return ResponseEntity.ok(new SubscriptionStatusResponse(true, planType, nextBilling.toString()));
+        } else {
+            UserSubscriptionEntity s = new UserSubscriptionEntity();
+            s.setUserAccount(userId);
+            s.setPlan(plan);
+            s.setStartDate(start);
+            s.setNextBillingDate(nextBilling);
+            s.setActive(true);
+            userSubscriptionRepository.save(s);
+            System.out.println("[Billing][SubscriptionController.update] created, nextBilling=" + nextBilling);
+            return ResponseEntity.ok(new SubscriptionStatusResponse(true, planType, nextBilling.toString()));
+        }
+    }
 }

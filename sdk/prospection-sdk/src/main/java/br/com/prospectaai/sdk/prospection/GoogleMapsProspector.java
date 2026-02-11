@@ -1285,20 +1285,10 @@ final class GoogleMapsProspector implements Prospector {
     private boolean matchesBusinessFilter(String nomeEmpresa, String types) {
         String bt = businessType != null ? businessType.trim().toLowerCase() : "";
         if (bt.isBlank()) return true;
+        
         String normTitle = simpleNormalize(nomeEmpresa);
         String normTypes = simpleNormalize(types);
-        String[] tokens = bt.split("\\s+");
-        boolean hasLongToken = false;
-        for (String tok : tokens) {
-            String t = tok.trim();
-            if (t.length() >= 3) {
-                hasLongToken = true;
-                if ((normTitle != null && normTitle.contains(t)) || (normTypes != null && normTypes.contains(t))) {
-                    return true;
-                }
-            }
-        }
-        if (!hasLongToken) return true;
+        
         String mapped = mapPlaceType(businessType);
         if (mapped != null && !mapped.isBlank()) {
             String m = simpleNormalize(mapped);
@@ -1306,12 +1296,36 @@ final class GoogleMapsProspector implements Prospector {
                 return true;
             }
         }
+
+        String[] tokens = bt.split("\\s+");
+        boolean hasLongToken = false;
+        for (String tok : tokens) {
+            String t = simpleNormalize(tok.trim());
+            if (t.length() >= 3) {
+                hasLongToken = true;
+                if ((normTitle != null && normTitle.contains(t)) || (normTypes != null && normTypes.contains(t))) {
+                    return true;
+                }
+                // Try singular if ends with 's'
+                if (t.endsWith("s")) {
+                    String singular = t.substring(0, t.length() - 1);
+                    if (singular.length() >= 3) {
+                        if ((normTitle != null && normTitle.contains(singular)) || (normTypes != null && normTypes.contains(singular))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        if (!hasLongToken) return true;
         return false;
     }
     
     private String simpleNormalize(String s) {
         if (s == null) return null;
-        String n = s.toLowerCase();
+        String n = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
+        n = n.replaceAll("\\p{M}", "");
+        n = n.toLowerCase();
         n = n.replace('_', ' ');
         return n;
     }

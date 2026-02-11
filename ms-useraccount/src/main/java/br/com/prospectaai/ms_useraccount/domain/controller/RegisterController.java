@@ -9,8 +9,6 @@
 
 package br.com.prospectaai.ms_useraccount.domain.controller;
 
-import br.com.prospectaai.ms_useraccount.domain.dto.LoginResponse;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -43,11 +41,6 @@ public class RegisterController {
         request.setScope(PreRegisterScope.INTERNAL);
         RegisterResponse response = preRegisterAccountService.doPreRegister(request);
         return ResponseEntity.ok(response);
-    }
-
-    public ResponseEntity<LoginResponse> completeRegister(@RequestParam(required = true) String preRegisterId) {
-
-        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/confirm-code")

@@ -29,6 +29,8 @@ import br.com.prospectaai.ms_useraccount.domain.dto.LoginRequest;
 import br.com.prospectaai.ms_useraccount.domain.dto.LoginResponse;
 import br.com.prospectaai.ms_useraccount.domain.entity.UserAccountEntity;
 import br.com.prospectaai.ms_useraccount.domain.repository.UserAccountRepository;
+import br.com.prospectaai.ms_useraccount.domain.service.BillingClient;
+import br.com.prospectaai.shared.dto.billing.SubscriptionStatusResponse;
 import br.com.prospectaai.ms_useraccount.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 
@@ -40,6 +42,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserAccountRepository userRepository;
+    private final BillingClient billingClient;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
@@ -78,6 +81,15 @@ public class AuthController {
             
             if (valid) {
                 String email = jwtTokenProvider.extractUsername(token);
+                UserAccountEntity user = userRepository.findByEmail(email).orElse(null);
+                if (user == null) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("invalid");
+                }
+                SubscriptionStatusResponse sub = billingClient.getSubscriptionStatus(user.getAccountId());
+                boolean subActive = sub != null && sub.isActive();
+                if (!subActive) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("invalid");
+                }
                 return ResponseEntity.ok(email);
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("invalid");

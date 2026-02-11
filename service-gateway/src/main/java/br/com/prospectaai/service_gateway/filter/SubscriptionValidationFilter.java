@@ -53,20 +53,30 @@ public class SubscriptionValidationFilter extends AbstractGatewayFilterFactory<S
                         .retrieve()
                         .bodyToMono(String.class)
                         .flatMap(userId -> {
-                                System.out.println("[Gateway][SubFilter] resolved userId=" + userId + "; checking subscription via " + billingBaseUrl + "/api/v1/billing/subscriptions/validate");
+                                System.out.println("[Gateway][SubFilter] resolved userId=" + userId + "; checking subscription via " + billingBaseUrl + "/api/v1/billing/subscriptions/status");
                                 return webClientBuilder.build()
                                 .get()
-                                .uri(billingBaseUrl + "/api/v1/billing/subscriptions/validate?userId=" + userId)
+                                .uri(billingBaseUrl + "/api/v1/billing/subscriptions/status?userId=" + userId)
                                 .retrieve()
-                                .bodyToMono(br.com.prospectaai.shared.dto.BooleanResponse.class);
+                                .bodyToMono(br.com.prospectaai.shared.dto.billing.SubscriptionStatusResponse.class);
                         })
                         .flatMap(res -> {
-                            boolean active = (res != null && res.isValue());
-                            System.out.println("[Gateway][SubFilter] subscription active=" + active);
+                            boolean active = (res != null && res.isActive());
+                            String plan = (res != null && res.getPlan() != null) ? res.getPlan().name() : "FREE";
+                            System.out.println("[Gateway][SubFilter] subscription active=" + active + ", plan=" + plan);
+                            
                             if (!active) {
                                 return onError(exchange, "Subscription inactive", HttpStatus.PAYMENT_REQUIRED);
                             }
-                            return chain.filter(exchange);
+                            
+                            ServerWebExchange modifiedExchange = exchange.mutate()
+                                .request(exchange.getRequest().mutate()
+                                    .header("X-Subscription-Active", "true")
+                                    .header("X-Subscription-Plan", plan)
+                                    .build())
+                                .build();
+                                
+                            return chain.filter(modifiedExchange);
                         })
                         .onErrorResume(error -> onError(exchange, "Subscription check failed", HttpStatus.BAD_GATEWAY));
             }
